@@ -1,6 +1,10 @@
 'use strict';
 
-require('dotenv').config({ override: true });
+if (process.env.NODE_ENV === 'test') {
+  require('dotenv').config();
+} else {
+  require('dotenv').config({ override: true });
+}
 
 module.exports = {
   port:            parseInt(process.env.PORT || '3000', 10),

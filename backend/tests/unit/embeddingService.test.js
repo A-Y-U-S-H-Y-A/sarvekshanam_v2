@@ -93,6 +93,7 @@ describe('EmbeddingService Unit Tests', () => {
     });
 
     it('calls OpenAI API and returns sorted embeddings', async () => {
+      config.openaiApiKey = 'real-key';
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -110,6 +111,7 @@ describe('EmbeddingService Unit Tests', () => {
     });
 
     it('falls back to hash on API error', async () => {
+      config.openaiApiKey = 'real-key';
       global.fetch.mockResolvedValueOnce({
         ok: false,
         status: 400,
@@ -125,6 +127,7 @@ describe('EmbeddingService Unit Tests', () => {
     });
 
     it('falls back to hash on network error', async () => {
+      config.openaiApiKey = 'real-key';
       global.fetch.mockRejectedValueOnce(new Error('Net error'));
       jest.spyOn(svc, '_hashEmbed').mockReturnValue([0.1]);
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();

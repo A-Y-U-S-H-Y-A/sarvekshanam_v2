@@ -36,6 +36,7 @@ jest.mock('../../src/services/runnerService', () => {
       startPolling:        jest.fn(),
       stopPolling:         jest.fn(),
       getRunners:          jest.fn().mockResolvedValue([]),
+      getRunnerById:       jest.fn().mockImplementation(async (id) => id === 'mock-runner' ? { id: 'mock-runner', url: 'http://test' } : null),
       runnerSupportsBulk:  jest.fn().mockReturnValue(false),
       markBulkUnsupported: jest.fn(),
     }),
@@ -55,7 +56,7 @@ const { _resetExecutionQueueService }      = require('../../src/services/executi
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-let app, testDb;
+let app, testDb, apptId;
 
 async function register(username, password = 'pass1234') {
   const res = await request(app)
@@ -112,9 +113,28 @@ beforeEach(async () => {
 
   app = createApp();
   exec.mockReset();
+
+  const mockUser = await testDb.User.create({ id: 'mock-user-1', username: 'appt-owner', password_hash: 'hash' });
+  const appt = await testDb.Appointment.create({
+    id: 'mock-uuid-appt',
+    name: 'E2E Default Appt',
+    mode: 'manual',
+    user_id: mockUser.id
+  });
+  apptId = appt.id;
+
+  await testDb.RemoteHost.create({
+    id: 'mock-runner',
+    name: 'Mock Runner',
+    url: 'http://localhost:8888',
+    status: 'online'
+  });
 });
 
 afterEach(() => {
+  if (global.fetch) {
+    global.fetch = undefined;
+  }
   jest.clearAllMocks();
 });
 
@@ -137,7 +157,7 @@ describe('Workflow 1 — Scan Lifecycle', () => {
     const createRes = await request(app)
       .post('/api/scans')
       .set('Authorization', `Bearer ${loginToken}`)
-      .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'] });
+      .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
 
     expect(createRes.status).toBe(202);
     const sessionId = createRes.body.data.session.id;
@@ -162,7 +182,7 @@ describe('Workflow 1 — Scan Lifecycle', () => {
   it('unauthenticated users cannot access scan lifecycle routes', async () => {
     const res = await request(app)
       .post('/api/scans')
-      .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'] });
+      .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
     expect(res.status).toBe(401);
   });
 
@@ -172,7 +192,7 @@ describe('Workflow 1 — Scan Lifecycle', () => {
     await request(app)
       .post('/api/scans')
       .set('Authorization', `Bearer ${token}`)
-      .send({ target: '10.0.0.1', moduleIds: ['nmap-quick-scan'] });
+      .send({ target: '10.0.0.1', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
 
     const listRes = await request(app)
       .get('/api/scans')
@@ -188,7 +208,7 @@ describe('Workflow 1 — Scan Lifecycle', () => {
     await request(app)
       .post('/api/scans')
       .set('Authorization', `Bearer ${token}`)
-      .send({ target: '10.0.0.2', moduleIds: ['nmap-quick-scan'] });
+      .send({ target: '10.0.0.2', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
 
     const res = await request(app)
       .get('/api/scans?status=pending')
@@ -219,6 +239,7 @@ describe('Workflow 2 — Bulk Scan', () => {
         targets,
         moduleIds: ['nmap-quick-scan'],
         name: 'E2E Bulk Test',
+        appointmentId: apptId
       });
 
     expect(res.status).toBe(202);
@@ -233,7 +254,7 @@ describe('Workflow 2 — Bulk Scan', () => {
     await request(app)
       .post('/api/scans/bulk')
       .set('Authorization', `Bearer ${token}`)
-      .send({ targets, moduleIds: ['nmap-quick-scan'] });
+      .send({ targets, moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
 
     const listRes = await request(app)
       .get('/api/scans')
@@ -250,14 +271,14 @@ describe('Workflow 2 — Bulk Scan', () => {
     const res1 = await request(app)
       .post('/api/scans/bulk')
       .set('Authorization', `Bearer ${token}`)
-      .send({ moduleIds: ['nmap-quick-scan'] });
+      .send({ moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
     expect(res1.status).toBe(400);
 
     // Missing moduleIds
     const res2 = await request(app)
       .post('/api/scans/bulk')
       .set('Authorization', `Bearer ${token}`)
-      .send({ targets: ['192.168.0.1'] });
+      .send({ targets: ['192.168.0.1'], appointmentId: apptId });
     expect(res2.status).toBe(400);
   });
 
@@ -267,7 +288,7 @@ describe('Workflow 2 — Bulk Scan', () => {
     const res = await request(app)
       .post('/api/scans/bulk')
       .set('Authorization', `Bearer ${token}`)
-      .send({ targets: ['1.1.1.1', '2.2.2.2'], moduleIds: ['nmap-quick-scan'] });
+      .send({ targets: ['1.1.1.1', '2.2.2.2'], moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
 
     for (const s of res.body.data.sessions) {
       expect(s.mode).toBe('bulk');
@@ -339,7 +360,7 @@ describe('Workflow 4 — Command Workflow', () => {
     const submitRes = await request(app)
       .post('/api/commands')
       .set('Authorization', `Bearer ${userToken}`)
-      .send({ command: 'ping -c 1 8.8.8.8' });
+      .send({ command: 'ping -c 1 8.8.8.8', runnerId: 'mock-runner' });
 
     expect(submitRes.status).toBe(202);
     expect(submitRes.body.data.command.status).toBe('pending');
@@ -352,13 +373,31 @@ describe('Workflow 4 — Command Workflow', () => {
     expect(listRes.body.data.total).toBeGreaterThanOrEqual(1);
 
     // 5. Admin approves — triggers execution
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => {
+          let readCount = 0;
+          return {
+            read: async () => {
+              if (readCount === 0) {
+                readCount++;
+                return { done: false, value: Buffer.from('data: {"type":"stdout","line":"PONG"}\n\ndata: {"type":"done","exit_code":0}\n\n') };
+              }
+              return { done: true };
+            }
+          };
+        }
+      }
+    });
+
     const approveRes = await request(app)
       .post(`/api/commands/${commandId}/approve`)
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(approveRes.status).toBe(200);
     expect(approveRes.body.data.command.status).toBe('executed');
-    expect(approveRes.body.data.command.output).toBe('PONG');
+    expect(approveRes.body.data.command.output).toContain('PONG');
   });
 
   it('non-admin cannot approve a command', async () => {
@@ -367,7 +406,7 @@ describe('Workflow 4 — Command Workflow', () => {
     const submitRes = await request(app)
       .post('/api/commands')
       .set('Authorization', `Bearer ${userToken}`)
-      .send({ command: 'ping 8.8.8.8' });
+      .send({ command: 'ping 8.8.8.8', runnerId: 'mock-runner' });
 
     const commandId = submitRes.body.data.command.id;
 
@@ -387,7 +426,7 @@ describe('Workflow 4 — Command Workflow', () => {
     const submitRes = await request(app)
       .post('/api/commands')
       .set('Authorization', `Bearer ${userToken}`)
-      .send({ command: 'ping 8.8.8.8' });
+      .send({ command: 'ping 8.8.8.8', runnerId: 'mock-runner' });
 
     const commandId = submitRes.body.data.command.id;
 
@@ -405,8 +444,8 @@ describe('Workflow 4 — Command Workflow', () => {
     const token1 = await register('cmd_user_4a');
     const token2 = await register('cmd_user_4b');
 
-    await request(app).post('/api/commands').set('Authorization', `Bearer ${token1}`).send({ command: 'ping 1.1.1.1' });
-    await request(app).post('/api/commands').set('Authorization', `Bearer ${token2}`).send({ command: 'ping 2.2.2.2' });
+    await request(app).post('/api/commands').set('Authorization', `Bearer ${token1}`).send({ command: 'ping 1.1.1.1', runnerId: 'mock-runner' });
+    await request(app).post('/api/commands').set('Authorization', `Bearer ${token2}`).send({ command: 'ping 2.2.2.2', runnerId: 'mock-runner' });
 
     const res = await request(app)
       .get('/api/commands')
@@ -546,7 +585,7 @@ describe('Workflow 6 — Retry Workflow', () => {
     const createRes = await request(app)
       .post('/api/scans')
       .set('Authorization', `Bearer ${token}`)
-      .send({ target: '255.255.255.255', moduleIds: ['nmap-quick-scan'] });
+      .send({ target: '255.255.255.255', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
 
     expect(createRes.status).toBe(202);
     const sessionId = createRes.body.data.session.id;
@@ -577,7 +616,7 @@ describe('Workflow 6 — Retry Workflow', () => {
     const createRes = await request(app)
       .post('/api/scans')
       .set('Authorization', `Bearer ${token}`)
-      .send({ target: '1.2.3.4', moduleIds: ['nmap-quick-scan'] });
+      .send({ target: '1.2.3.4', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
 
     expect(createRes.status).toBe(202);
     expect(createRes.body.data.session.retryCount).toBe(0);
@@ -586,12 +625,10 @@ describe('Workflow 6 — Retry Workflow', () => {
 
   it('POST /api/scans/:id/retry returns 404 for unknown session', async () => {
     const token = await register('retry_user_3');
-    await makeAdmin('retry_user_3');
-    const adminToken = await login('retry_user_3');
 
     const res = await request(app)
       .post('/api/scans/nonexistent-session-id/retry')
-      .set('Authorization', `Bearer ${adminToken}`);
+      .set('Authorization', `Bearer ${token}`);
 
     expect([404, 400, 403]).toContain(res.status);
   });

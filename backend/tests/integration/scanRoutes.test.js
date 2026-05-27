@@ -16,7 +16,7 @@ const { _resetScanSessionService } = require('../../src/services/scanSessionServ
 const { _resetCommandService }     = require('../../src/services/commandService');
 const { createApp }                = require('../../src/app');
 
-let app, testDb, token;
+let app, testDb, token, apptId;
 
 async function register(username = 'alice', password = 'pass1234') {
   const res = await request(app).post('/auth/register').send({ username, password });
@@ -36,6 +36,15 @@ beforeEach(async () => {
   token = await register('alice');
   await makeAdmin('alice');
   exec.mockReset();
+
+  const mockUser = await testDb.User.create({ id: 'mock-user-1', username: 'appt-owner', password_hash: 'hash' });
+  const appt = await testDb.Appointment.create({
+    id: 'mock-uuid-appt',
+    name: 'Test Appt',
+    mode: 'manual',
+    user_id: mockUser.id
+  });
+  apptId = appt.id;
 });
 
 afterEach(() => {
@@ -49,7 +58,7 @@ describe('Scan routes', () => {
       const res = await request(app)
         .post('/api/scans')
         .set('Authorization', `Bearer ${token}`)
-        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'] });
+        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
       expect(res.status).toBe(202);
       expect(res.body.data.session.id).toBeDefined();
       expect(res.body.data.session.status).toBe('pending');
@@ -59,7 +68,7 @@ describe('Scan routes', () => {
       const res = await request(app)
         .post('/api/scans')
         .set('Authorization', `Bearer ${token}`)
-        .send({ moduleIds: ['nmap-quick-scan'] });
+        .send({ moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
       expect(res.status).toBe(400);
     });
 
@@ -67,12 +76,12 @@ describe('Scan routes', () => {
       const res = await request(app)
         .post('/api/scans')
         .set('Authorization', `Bearer ${token}`)
-        .send({ target: '192.168.1.1' });
+        .send({ target: '192.168.1.1', appointmentId: apptId });
       expect(res.status).toBe(400);
     });
 
     it('returns 401 without token', async () => {
-      const res = await request(app).post('/api/scans').send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'] });
+      const res = await request(app).post('/api/scans').send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
       expect(res.status).toBe(401);
     });
   });
@@ -80,7 +89,7 @@ describe('Scan routes', () => {
   describe('GET /api/scans', () => {
     it('lists sessions', async () => {
       await request(app).post('/api/scans').set('Authorization', `Bearer ${token}`)
-        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'] });
+        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
       const res = await request(app).get('/api/scans').set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
       expect(res.body.data.sessions.length).toBeGreaterThanOrEqual(1);
@@ -95,7 +104,7 @@ describe('Scan routes', () => {
   describe('GET /api/scans/:id', () => {
     it('returns session detail', async () => {
       const create = await request(app).post('/api/scans').set('Authorization', `Bearer ${token}`)
-        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'] });
+        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
       const id  = create.body.data.session.id;
       const res = await request(app).get(`/api/scans/${id}`).set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
@@ -110,7 +119,7 @@ describe('Scan routes', () => {
     it('returns 403 when another non-admin user tries to access session', async () => {
       // Create scan as alice (admin)
       const create = await request(app).post('/api/scans').set('Authorization', `Bearer ${token}`)
-        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'] });
+        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
       const id = create.body.data.session.id;
 
       // Register bob as viewer (not admin)
@@ -123,7 +132,7 @@ describe('Scan routes', () => {
   describe('DELETE /api/scans/:id', () => {
     it('deletes a session', async () => {
       const create = await request(app).post('/api/scans').set('Authorization', `Bearer ${token}`)
-        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'] });
+        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
       const id     = create.body.data.session.id;
       const res    = await request(app).delete(`/api/scans/${id}`).set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
@@ -139,7 +148,7 @@ describe('Scan routes', () => {
 
     it('returns 403 when another non-admin user tries to delete session', async () => {
       const create = await request(app).post('/api/scans').set('Authorization', `Bearer ${token}`)
-        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'] });
+        .send({ target: '192.168.1.1', moduleIds: ['nmap-quick-scan'], appointmentId: apptId });
       const id = create.body.data.session.id;
 
       const bobToken = await register('bob_scan_del');

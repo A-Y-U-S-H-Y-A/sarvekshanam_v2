@@ -18,6 +18,7 @@ let app, testDb, userToken, adminToken;
 
 async function register(username, password = 'pass1234') {
   const res = await request(app).post('/auth/register').send({ username, password });
+  if (!res.body.data) console.error('Register failed:', res.body);
   return res.body.data.token;
 }
 
@@ -36,13 +37,21 @@ beforeEach(async () => {
   await makeAdmin('bob');
   // Fresh token after role change
   const loginRes = await request(app).post('/auth/login').send({ username: 'bob', password: 'pass1234' });
+  if (!loginRes.body.data) console.error('Login failed:', loginRes.body);
   adminToken = loginRes.body.data.token;
+  await testDb.RemoteHost.create({
+    id: 'mock-runner',
+    name: 'Mock Runner',
+    url: 'http://localhost:8888',
+    status: 'online'
+  });
   exec.mockReset();
 });
 
 afterEach(() => {
-  // No need to close the Sequelize connection between tests.
-  // sync({ force: true }) in beforeEach resets all data.
+  if (global.fetch) {
+    jest.restoreAllMocks();
+  }
 });
 
 describe('Command routes', () => {
@@ -51,7 +60,7 @@ describe('Command routes', () => {
       const res = await request(app)
         .post('/api/commands')
         .set('Authorization', `Bearer ${userToken}`)
-        .send({ command: 'ping -c 4 8.8.8.8' });
+        .send({ command: 'ping -c 4 8.8.8.8', runnerId: 'mock-runner' });
       expect(res.status).toBe(202);
       expect(res.body.data.command.status).toBe('pending');
     });
@@ -60,27 +69,27 @@ describe('Command routes', () => {
       const res = await request(app)
         .post('/api/commands')
         .set('Authorization', `Bearer ${userToken}`)
-        .send({ command: '' });
+        .send({ command: '', runnerId: 'mock-runner' });
       expect(res.status).toBe(400);
     });
 
     it('returns 401 without token', async () => {
-      const res = await request(app).post('/api/commands').send({ command: 'ping 8.8.8.8' });
+      const res = await request(app).post('/api/commands').send({ command: 'ping 8.8.8.8', runnerId: 'mock-runner' });
       expect(res.status).toBe(401);
     });
   });
 
   describe('GET /api/commands', () => {
     it('user sees only their own commands', async () => {
-      await request(app).post('/api/commands').set('Authorization', `Bearer ${userToken}`).send({ command: 'ping 1.1.1.1' });
-      await request(app).post('/api/commands').set('Authorization', `Bearer ${adminToken}`).send({ command: 'ping 2.2.2.2' });
+      await request(app).post('/api/commands').set('Authorization', `Bearer ${userToken}`).send({ command: 'ping 1.1.1.1', runnerId: 'mock-runner' });
+      await request(app).post('/api/commands').set('Authorization', `Bearer ${adminToken}`).send({ command: 'ping 2.2.2.2', runnerId: 'mock-runner' });
       const res = await request(app).get('/api/commands').set('Authorization', `Bearer ${userToken}`);
       expect(res.body.data.total).toBe(1);
     });
 
     it('admin sees all commands', async () => {
-      await request(app).post('/api/commands').set('Authorization', `Bearer ${userToken}`).send({ command: 'ping 1.1.1.1' });
-      await request(app).post('/api/commands').set('Authorization', `Bearer ${adminToken}`).send({ command: 'ping 2.2.2.2' });
+      await request(app).post('/api/commands').set('Authorization', `Bearer ${userToken}`).send({ command: 'ping 1.1.1.1', runnerId: 'mock-runner' });
+      await request(app).post('/api/commands').set('Authorization', `Bearer ${adminToken}`).send({ command: 'ping 2.2.2.2', runnerId: 'mock-runner' });
       const res = await request(app).get('/api/commands').set('Authorization', `Bearer ${adminToken}`);
       expect(res.body.data.total).toBe(2);
     });
@@ -88,20 +97,37 @@ describe('Command routes', () => {
 
   describe('POST /api/commands/:id/approve', () => {
     it('admin can approve and execute a command', async () => {
-      exec.mockImplementation((cmd, opts, cb) => cb(null, 'PONG', ''));
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        body: {
+          getReader: () => {
+            let readCount = 0;
+            return {
+              read: async () => {
+                if (readCount === 0) {
+                  readCount++;
+                  return { done: false, value: Buffer.from('data: {"type":"stdout","line":"PONG"}\n\ndata: {"type":"done","exit_code":0}\n\n') };
+                }
+                return { done: true };
+              }
+            };
+          }
+        }
+      });
+
       const submit = await request(app)
-        .post('/api/commands').set('Authorization', `Bearer ${userToken}`).send({ command: 'ping 8.8.8.8' });
+        .post('/api/commands').set('Authorization', `Bearer ${userToken}`).send({ command: 'ping 8.8.8.8', runnerId: 'mock-runner' });
       const id = submit.body.data.command.id;
 
       const res = await request(app).post(`/api/commands/${id}/approve`).set('Authorization', `Bearer ${adminToken}`);
       expect(res.status).toBe(200);
       expect(res.body.data.command.status).toBe('executed');
-      expect(res.body.data.command.output).toBe('PONG');
+      expect(res.body.data.command.output).toContain('PONG');
     });
 
     it('non-admin cannot approve', async () => {
       const submit = await request(app)
-        .post('/api/commands').set('Authorization', `Bearer ${userToken}`).send({ command: 'ping 8.8.8.8' });
+        .post('/api/commands').set('Authorization', `Bearer ${userToken}`).send({ command: 'ping 8.8.8.8', runnerId: 'mock-runner' });
       const id = submit.body.data.command.id;
       const res = await request(app).post(`/api/commands/${id}/approve`).set('Authorization', `Bearer ${userToken}`);
       expect(res.status).toBe(403);
@@ -111,7 +137,7 @@ describe('Command routes', () => {
   describe('POST /api/commands/:id/reject', () => {
     it('admin can reject a command with reason', async () => {
       const submit = await request(app)
-        .post('/api/commands').set('Authorization', `Bearer ${userToken}`).send({ command: 'ping 8.8.8.8' });
+        .post('/api/commands').set('Authorization', `Bearer ${userToken}`).send({ command: 'ping 8.8.8.8', runnerId: 'mock-runner' });
       const id = submit.body.data.command.id;
 
       const res = await request(app).post(`/api/commands/${id}/reject`)

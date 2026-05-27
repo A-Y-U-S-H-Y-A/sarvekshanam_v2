@@ -123,7 +123,7 @@ describe('VectorService Unit Tests', () => {
     it('embeds query and searches backend', async () => {
       const res = await svc.search('my query', 3);
       expect(mockEmbedder.embedOne).toHaveBeenCalledWith('my query');
-      expect(svc._backend.search).toHaveBeenCalledWith([0.1, 0.2], 3);
+      expect(svc._backend.search).toHaveBeenCalledWith([0.1, 0.2], 3, {});
       expect(res).toEqual([{ docId: '1', score: 0.9 }]);
     });
   });
@@ -183,7 +183,7 @@ describe('VectorService Unit Tests', () => {
   describe('Search default topK', () => {
     it('search() with default topK=5', async () => {
       await svc.search('my query');
-      expect(svc._backend.search).toHaveBeenCalledWith([0.1, 0.2], 5);
+      expect(svc._backend.search).toHaveBeenCalledWith([0.1, 0.2], 5, {});
     });
   });
 });

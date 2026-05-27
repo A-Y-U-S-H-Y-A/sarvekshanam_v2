@@ -60,7 +60,7 @@ describe('scanController Unit Tests', () => {
     });
 
     it('creates session and returns 202', async () => {
-      req.body = { target: 't1', moduleIds: ['m1'] };
+      req.body = { target: 't1', moduleIds: ['m1'], appointmentId: 'mock-uuid' };
       mockScanSvc.create.mockResolvedValue({ id: 's1', status: 'pending' });
 
       await scanController.createScan(req, res, next);
@@ -83,7 +83,7 @@ describe('scanController Unit Tests', () => {
     });
 
     it('creates bulk sessions and returns 202', async () => {
-      req.body = { targets: ['t1', 't2'], moduleIds: ['m1'] };
+      req.body = { targets: ['t1', 't2'], moduleIds: ['m1'], appointmentId: 'mock-uuid' };
       mockScanSvc.bulkCreate.mockResolvedValue([{ id: 's1' }, { id: 's2' }]);
 
       await scanController.bulkScan(req, res, next);

@@ -29,12 +29,12 @@ describe('commandController Unit Tests', () => {
 
   describe('submit', () => {
     it('submits command and returns 202', async () => {
-      req.body = { command: 'ls -la' };
+      req.body = { command: 'ls -la', runnerId: 'mock-runner' };
       mockSvc.submit.mockResolvedValue({ id: 'c1', status: 'pending' });
 
       await commandController.submit(req, res, next);
 
-      expect(mockSvc.submit).toHaveBeenCalledWith('u1', 'alice', 'ls -la');
+      expect(mockSvc.submit).toHaveBeenCalledWith('u1', 'alice', 'ls -la', 'mock-runner');
       expect(res.status).toHaveBeenCalledWith(202);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ success: true })

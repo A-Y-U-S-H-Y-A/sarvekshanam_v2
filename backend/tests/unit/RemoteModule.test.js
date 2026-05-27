@@ -70,7 +70,7 @@ describe('RemoteModule Unit Tests', () => {
       const mod = new RemoteModule(mockRunner, mockModuleData);
       
       await mod.run({ target: '127.0.0.1', param1: 'val' });
-      expect(mockRunnerService.runModuleOnHost).toHaveBeenCalledWith('runner-1', 'test-mod', ['127.0.0.1'], undefined);
+      expect(mockRunnerService.runModuleOnHost).toHaveBeenCalledWith('runner-1', 'test-mod', ['127.0.0.1', 'val'], undefined);
     });
 
     it('handles remote returning an explicit error object', async () => {

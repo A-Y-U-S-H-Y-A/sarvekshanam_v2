@@ -37,6 +37,7 @@ const errorHandler  = require('../../src/middleware/errorHandler');
 // Build a minimal express app
 const app = express();
 app.use(express.json());
+app.use(require('../../src/middleware/rateLimiter').apiLimiter);
 app.post('/api/rag/search', authenticate, ragController.search);
 app.post('/api/rag/ingest', authenticate, adminOnly, ragController.ingest);
 app.get('/api/rag/stats',   authenticate, adminOnly, ragController.stats);

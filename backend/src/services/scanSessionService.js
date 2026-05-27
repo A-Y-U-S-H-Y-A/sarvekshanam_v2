@@ -121,6 +121,8 @@ class ScanSessionService extends EventEmitter {
   }
 
   async bulkCreate(userId, { name, targets, moduleIds, params = {}, runnerId = null, proxyConfig = null, appointmentId = null }) {
+    if (!Array.isArray(targets)) throw new Error('targets must be an array');
+    if (targets.length > 10000) throw new Error('Too many targets for bulk creation');
     const sessions = [];
     for (let i = 0; i < targets.length; i++) {
       const target = targets[i];

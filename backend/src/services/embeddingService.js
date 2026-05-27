@@ -128,6 +128,9 @@ class EmbeddingService {
    * @returns {number[]}
    */
   _hashEmbed(text) {
+    if (typeof text !== 'string') text = String(text);
+    if (text.length > 100000) text = text.substring(0, 100000); // Prevent unbounded loop
+
     const dims = this._dimensions;
     const vec = new Float64Array(dims);
     let hash = 0;

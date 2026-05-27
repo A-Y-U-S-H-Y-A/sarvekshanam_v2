@@ -11,6 +11,7 @@ const config          = require('./config');
 const apiRoutes       = require('./routes');
 const authRoutes      = require('./auth/authRoutes');
 const errorHandler    = require('./middleware/errorHandler');
+const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
 
 const { getRunnerService }  = require('./services/runnerService');
 
@@ -53,11 +54,16 @@ function createApp() {
     console.warn('[App] Swagger file not loaded:', err.message);
   }
 
+  // ── Trust Proxy ───────────────────────────────────────────────────────────
+  // Useful if we are behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc)
+  // It shows the real origin IP in the express req.ip
+  app.set('trust proxy', 1);
+
   // ── Auth routes (no /api prefix on purpose) ───────────────────────────────
-  app.use('/auth', authRoutes);
+  app.use('/auth', authLimiter, authRoutes);
 
   // ── API routes ────────────────────────────────────────────────────────────
-  app.use('/api', apiRoutes);
+  app.use('/api', apiLimiter, apiRoutes);
 
   // ── Serve frontend static files ───────────────────────────────────────────
   const frontendDir = path.join(__dirname, '../../frontend');

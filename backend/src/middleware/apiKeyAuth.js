@@ -1,6 +1,6 @@
 'use strict';
 
-const crypto    = require('crypto');
+const bcrypt    = require('bcryptjs');
 const { getDb } = require('../db/database');
 
 /**
@@ -18,12 +18,18 @@ async function apiKeyAuth(req, res, next) {
   if (!rawKey) return next();
 
   try {
-    const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+    const parts = rawKey.split('_');
+    if (parts.length !== 3 || parts[0] !== 'sarv') return next();
+    
+    const [_, id, secret] = parts;
     const { ApiKey, User } = getDb();
 
-    const apiKey = await ApiKey.findOne({ where: { key_hash: keyHash } });
-
+    const apiKey = await ApiKey.findByPk(id);
     if (!apiKey) return next();                              // no match → fall through
+
+    // Verify secret
+    const isValid = bcrypt.compareSync(secret, apiKey.key_hash);
+    if (!isValid) return next();
     if (apiKey.revoked_at) {
       return res.status(401).json({
         success: false,

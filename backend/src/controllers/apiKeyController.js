@@ -1,6 +1,8 @@
 'use strict';
 
 const crypto    = require('crypto');
+const bcrypt    = require('bcryptjs');
+const config    = require('../config');
 const { getDb } = require('../db/database');
 
 // POST /api/keys — Generate a new API key
@@ -10,8 +12,9 @@ exports.create = async (req, res, next) => {
     const userId = req.user.id;
 
     const id     = crypto.randomUUID();
-    const rawKey = `sarv_${crypto.randomBytes(32).toString('hex')}`;
-    const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+    const secret = crypto.randomBytes(32).toString('hex');
+    const rawKey = `sarv_${id}_${secret}`;
+    const keyHash = bcrypt.hashSync(secret, config.bcryptRounds);
 
     const { ApiKey } = getDb();
     await ApiKey.create({

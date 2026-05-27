@@ -5,20 +5,22 @@ process.env.NODE_ENV = 'test';
 const apiKeyAuth = require('../../src/middleware/apiKeyAuth');
 const crypto = require('crypto');
 
-// Mock db
 jest.mock('../../src/db/database', () => {
-  const mockFindOne = jest.fn();
   const mockFindByPk = jest.fn();
 
   return {
     getDb: () => ({
-      ApiKey: { findOne: mockFindOne },
+      ApiKey: { findByPk: mockFindByPk },
       User: { findByPk: mockFindByPk }
     }),
-    mockFindOne,
     mockFindByPk
   };
 });
+
+jest.mock('bcryptjs', () => ({
+  compareSync: jest.fn()
+}));
+const bcrypt = require('bcryptjs');
 
 describe('apiKeyAuth Middleware Unit Tests', () => {
   let req;
@@ -41,23 +43,24 @@ describe('apiKeyAuth Middleware Unit Tests', () => {
     await apiKeyAuth(req, res, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalledWith(); // no args
-    expect(dbMocks.mockFindOne).not.toHaveBeenCalled();
+    expect(dbMocks.mockFindByPk).not.toHaveBeenCalled();
   });
 
   it('calls next() if api key not found', async () => {
-    req.headers['x-api-key'] = 'test-key';
-    dbMocks.mockFindOne.mockResolvedValueOnce(null);
+    req.headers['x-api-key'] = 'sarv_k1_secret';
+    dbMocks.mockFindByPk.mockResolvedValueOnce(null);
 
     await apiKeyAuth(req, res, next);
     
-    expect(dbMocks.mockFindOne).toHaveBeenCalled();
+    expect(dbMocks.mockFindByPk).toHaveBeenCalledWith('k1');
     expect(next).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalledWith();
   });
 
   it('returns 401 if api key is revoked', async () => {
-    req.headers['x-api-key'] = 'test-key';
-    dbMocks.mockFindOne.mockResolvedValueOnce({ revoked_at: new Date() });
+    req.headers['x-api-key'] = 'sarv_k1_secret';
+    dbMocks.mockFindByPk.mockResolvedValueOnce({ key_hash: 'hash', revoked_at: new Date() });
+    bcrypt.compareSync.mockReturnValueOnce(true);
 
     await apiKeyAuth(req, res, next);
     
@@ -70,9 +73,10 @@ describe('apiKeyAuth Middleware Unit Tests', () => {
   });
 
   it('calls next() if user not found', async () => {
-    req.headers['x-api-key'] = 'test-key';
-    dbMocks.mockFindOne.mockResolvedValueOnce({ user_id: 'u1' });
-    dbMocks.mockFindByPk.mockResolvedValueOnce(null);
+    req.headers['x-api-key'] = 'sarv_k1_secret';
+    dbMocks.mockFindByPk.mockResolvedValueOnce({ key_hash: 'hash', user_id: 'u1' }); // For ApiKey
+    dbMocks.mockFindByPk.mockResolvedValueOnce(null); // For User
+    bcrypt.compareSync.mockReturnValueOnce(true);
 
     await apiKeyAuth(req, res, next);
     
@@ -81,16 +85,19 @@ describe('apiKeyAuth Middleware Unit Tests', () => {
   });
 
   it('attaches req.user and req.apiKey and calls next()', async () => {
-    req.headers['x-api-key'] = 'test-key';
+    req.headers['x-api-key'] = 'sarv_k1_secret';
     
     const mockUpdate = jest.fn().mockResolvedValue();
-    dbMocks.mockFindOne.mockResolvedValueOnce({
+    dbMocks.mockFindByPk.mockResolvedValueOnce({
       id: 'k1',
       name: 'Key 1',
       scopes_json: '["admin"]',
       user_id: 'u1',
+      key_hash: 'hash',
       update: mockUpdate
-    });
+    }); // ApiKey
+
+    bcrypt.compareSync.mockReturnValueOnce(true);
     
     dbMocks.mockFindByPk.mockResolvedValueOnce({
       id: 'u1',
@@ -110,9 +117,9 @@ describe('apiKeyAuth Middleware Unit Tests', () => {
   });
 
   it('catches and passes errors to next()', async () => {
-    req.headers['x-api-key'] = 'test-key';
+    req.headers['x-api-key'] = 'sarv_k1_secret';
     const err = new Error('DB failed');
-    dbMocks.mockFindOne.mockRejectedValueOnce(err);
+    dbMocks.mockFindByPk.mockRejectedValueOnce(err);
 
     await apiKeyAuth(req, res, next);
     

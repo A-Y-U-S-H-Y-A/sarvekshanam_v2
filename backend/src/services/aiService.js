@@ -980,7 +980,13 @@ class AIService {
     ];
     for (const pattern of patterns) {
       const match = text.match(pattern);
-      if (match) return match[0].replace(/[.,;:!?]+$/, '');
+      if (match) {
+        let str = match[0];
+        while (str.length > 0 && /[.,;:!?]/.test(str[str.length - 1])) {
+          str = str.slice(0, -1);
+        }
+        return str;
+      }
     }
     return null;
   }
@@ -1017,12 +1023,12 @@ class AIService {
     const moduleText = `${moduleMeta.id || ''} ${moduleMeta.name || ''}`.toLowerCase();
 
     if (moduleText.includes('port')) {
-      const portsMatch = text.match(/\bports?\s*(?:are|is|=|:)?\s*([0-9,\-\s]+)\b/i);
+      const portsMatch = text.match(/\bports?(?:\s+(?:are|is))?\s*[:=]?\s*([0-9][0-9,\- ]*)\b/i);
       if (portsMatch && portsMatch[1]) {
         params.ports = portsMatch[1].replace(/\s+/g, '').replace(/,+$/, '');
       }
 
-      const timingMatch = text.match(/\bT([0-5])\b/i) || text.match(/\btiming\s*(?:is|=|:)?\s*([0-5])\b/i);
+      const timingMatch = text.match(/\bT([0-5])\b/i) || text.match(/\btiming\s*(?:(?:is|=|:)\s*)?([0-5])\b/i);
       if (timingMatch && timingMatch[1]) {
         params.timing = `T${timingMatch[1]}`;
       }

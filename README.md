@@ -1,10 +1,6 @@
 <div align="center">
-  <img src="docs/assets/architecture.png" alt="Sarvekshanam Architecture" width="100%" style="border-radius: 8px;" />
-  
-  <br/>
-  
   <h1>Sarvekshanam</h1>
-  
+
   <p><b>Advanced Multi-System Security Operations & AI Analysis Platform</b></p>
 
   <p>
@@ -17,24 +13,60 @@
 
 <br/>
 
-**Sarvekshanam (v2 Beta)** is a vulnerability and security tool orchestration platform comprising a centralized Node.js Master and distributed Go Slaves (Remote Runners). It features an agentic AI assistant capable of digesting massive scan outputs via RAG, generating actionable security insights, and directly interacting with your security fleet.
+**Sarvekshanam (v2 Beta)** is a distributed vulnerability orchestration and AI-assisted security operations platform built around a centralized Node.js Master and scalable Go-based Remote Runners.
 
-> **Note:** This is Version 2 (currently in Beta) of the original [Sarvekshanam project](https://github.com/A-Y-U-S-H-Y-A/sarvekshanam). V2 introduces distributed Go Slaves, RAG, and an Agentic AI assistant while maintaining the powerful orchestration capabilities of the original.
-
----
-
-## ✨ Features
-
-- **🚀 Fleet Orchestration**: Manage distributed Go Slaves to execute arbitrary security scripts.
-- **🤖 Agentic AI**: Chat with your security data. AI can summarize findings, query via RAG, and execute new tools.
-- **🛡️ Ephemeral Sandboxes**: Slaves run each task in isolated temp directories to prevent data contamination.
-- **📦 Multi-Language Modules**: Dynamically hot-load Python, Node, Go, or Bash security modules simply by dropping a folder.
-- **🔒 Enterprise Security**: Asymmetric RSA-OAEP payload encryption, JWKS authentication, and OIDC SSO integration.
-- **🚄 Bulk Operations**: Orchestrate module execution across hundreds of targets simultaneously.
+Instead of acting as a single monolithic scanner, Sarvekshanam coordinates an entire fleet of execution nodes capable of running custom offensive security modules, collecting telemetry, streaming results in real time, and feeding findings into an agentic AI workflow powered by Retrieval-Augmented Generation (RAG).
 
 ---
 
-## 📸 Screenshots
+
+# 🧠 Architecture
+
+<div align="center">
+  <img src="docs/assets/architecture.png" alt="Sarvekshanam Architecture" width="50%" style="border-radius: 8px;" />
+</div>
+
+<br/>
+
+The architecture is designed around four tightly integrated layers:
+
+- **🖥️ Control Layer (Master Server)** — Handles orchestration, authentication, module scheduling, fleet management, report aggregation, and AI coordination.
+- **⚙️ Execution Layer (Remote Runners)** — Lightweight Go agents that securely execute tasks inside ephemeral sandboxes across distributed infrastructure.
+- **🧠 Intelligence Layer (AI + RAG)** — Processes massive scan outputs, enables contextual AI conversations, summarizes findings, and assists in remediation workflows.
+- **📡 Module Ecosystem** — Supports dynamically hot-loaded Python, Bash, Node.js, and Go security modules without requiring recompilation.
+
+This allows Sarvekshanam to function both as a traditional vulnerability orchestration platform and as an intelligent security operations environment capable of scaling from local testing labs to distributed enterprise fleets.
+
+> **Note:** This is Version 2 (currently in Beta) of the original [Sarvekshanam project](https://github.com/A-Y-U-S-H-Y-A/sarvekshanam). V2 introduces distributed Go Slaves, RAG-based intelligence, and an Agentic AI assistant while preserving the orchestration-first philosophy of the original platform.
+
+---
+
+# ✨ Features
+
+- **🚀 Fleet Orchestration**  
+  Manage distributed Go Slaves capable of executing arbitrary security scripts and workflows.
+
+- **🤖 Agentic AI Operations**  
+  Chat with scan results, generate summaries, correlate findings, and launch additional modules directly from the AI interface.
+
+- **🛡️ Ephemeral Execution Sandboxes**  
+  Every task executes inside isolated temporary environments to prevent cross-contamination between scans.
+
+- **📦 Multi-Language Module Support**  
+  Dynamically hot-load Python, Bash, Go, or Node.js modules simply by dropping them into the modules directory.
+
+- **🔒 Enterprise-Grade Security**  
+  RSA-OAEP encrypted payloads, JWKS authentication, JWT validation, and OIDC SSO integration.
+
+- **🚄 Distributed Bulk Operations**  
+  Execute security tooling across hundreds of targets simultaneously through remote execution nodes.
+
+- **📚 AI-Powered Context Retention**  
+  Massive outputs are indexed into vector memory using sqlite-vec for intelligent retrieval and contextual conversations.
+
+---
+
+# 📸 Screenshots
 
 | Power User Dashboard | AI Chat Interface |
 | :---: | :---: |
@@ -42,29 +74,37 @@
 
 ---
 
-## 📚 Documentation
+# 📚 Documentation
 
-The full documentation is available in the [`docs/`](docs/) directory and can be hosted via GitHub Pages:
+The full documentation is available in the [`docs/`](docs/) directory and can be hosted via GitHub Pages.
 
-- [**Architecture Overview**](docs/architecture.md)
-- [**Getting Started & Installation**](docs/getting-started.md)
-- [**Configuration Guide (.env)**](docs/configuration.md)
-- [**Module Development Guide**](docs/modules-guide.md)
-- [**Security & Fleet Management**](docs/security.md)
-- [**AI & Context Integration**](docs/ai-integration.md)
+| Guide | Description |
+|---|---|
+| [Architecture Overview](docs/architecture.md) | Internal system design and data flow |
+| [Getting Started](docs/getting-started.md) | Installation and initial setup |
+| [Configuration Guide](docs/configuration.md) | Environment variables and runtime configuration |
+| [Module Development Guide](docs/modules-guide.md) | Building custom security modules |
+| [Security & Fleet Management](docs/security.md) | Authentication, encryption, and remote node management |
+| [AI & Context Integration](docs/ai-integration.md) | RAG pipeline and AI orchestration |
 
 ---
 
-## ⚡ Quick Start
+# ⚡ Quick Start
 
-### 1. Requirements
+## 1. Requirements
+
 - Node.js (v18+)
-- Go (v1.25.5+) *(optional, if you want to run the local remote runner)*
+- Go (v1.25.5+) *(optional for running local remote runners)*
 
-### 2. Setup the Master Server
+---
+
+## 2. Setup the Master Server
+
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/sarvekshanam.git
+
+# Enter backend directory
 cd sarvekshanam/backend
 
 # Install dependencies
@@ -72,39 +112,68 @@ npm install
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your LLM API keys and JWT secret
+````
+
+Edit `.env` and configure:
+
+* LLM API keys
+* JWT secrets
+* OIDC settings *(optional)*
+* Fleet authentication configuration
+
+---
+
+## 3. Start the Platform
+
+### Windows
+
+```bash
+../start.bat
 ```
 
-### 3. Start the Master
-```bash
-# Windows
-../start.bat
+### Linux / macOS
 
-# Linux/Mac
+```bash
 npm run start
 ```
-The platform will now be accessible at `http://localhost:3000`.
 
-### 4. Remote Runners (Optional)
-The system is designed to delegate work to `remote-runners`. A default Go runner is included but completely optional.
-See the [**Remote Runner README**](remote-runner/README.md) to set up distributed execution nodes.
+The platform will now be available at:
 
----
-
-## 🧩 Tech Stack
-
-| Component | Technology |
-|---|---|
-| **Frontend** | Vanilla JS, Pure HTML/CSS, Monospace minimalist theme |
-| **Backend** | Node.js, Express, Sequelize ORM |
-| **Databases** | SQLite (default), sqlite-vec (Vector RAG) |
-| **Authentication** | Passport.js, JWKS, Asymmetric RSA |
-| **AI Integration** | LangChain (Ollama, Anthropic, Gemini, Groq, OpenAI) |
-| **Remote Node** | Go 1.25, SSE Streaming |
+```txt
+http://localhost:3000
+```
 
 ---
 
-## 📜 License
+## 4. Configure Remote Runners (Optional)
 
-This project is licensed under the **GNU General Public License v3.0 (GPLv3)**.  
+Sarvekshanam is built to support distributed execution through lightweight remote runners.
+
+The included Go-based runner can be deployed across VPS instances, internal infrastructure, or isolated lab systems to create a scalable security execution fleet.
+
+See the [Remote Runner README](remote-runner/README.md) for setup instructions.
+
+---
+
+# 🧩 Tech Stack
+
+| Layer                | Technology                                         |
+| -------------------- | -------------------------------------------------- |
+| **Frontend**         | Vanilla JS, Pure HTML/CSS, Monospace Minimal UI    |
+| **Backend**          | Node.js, Express, Sequelize ORM                    |
+| **Database**         | SQLite, sqlite-vec                                 |
+| **Authentication**   | Passport.js, JWKS, RSA Cryptography                |
+| **AI Stack**         | LangChain, Ollama, OpenAI, Anthropic, Gemini, Groq |
+| **Remote Execution** | Go 1.25, SSE Streaming                             |
+| **Vector Memory**    | Retrieval-Augmented Generation (RAG)               |
+
+---
+
+# 📜 License
+
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**.
+
 See the [LICENSE](LICENSE) file for more details.
+
+```
+```

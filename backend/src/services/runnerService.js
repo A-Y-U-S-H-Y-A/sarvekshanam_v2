@@ -392,7 +392,7 @@ class RunnerService {
           registry.registerDynamic(new RemoteModule(runner, mod));
         }
       } catch (e) {
-        console.error(`[RunnerService] Failed to sync dynamic modules for runner ${id}:`, e);
+        console.error('[RunnerService] Failed to sync dynamic modules for runner %s:', id, e);
       }
     }
 

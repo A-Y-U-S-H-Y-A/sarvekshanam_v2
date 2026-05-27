@@ -1348,7 +1348,7 @@ class AIService {
       }
       throw new Error('No models found or API returned an error.');
     } catch (err) {
-      console.error(`Failed to fetch models for ${provider}:`, err);
+      console.error('Failed to fetch models for %s:', provider, err);
       throw err;
     }
   }

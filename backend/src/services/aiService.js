@@ -404,7 +404,7 @@ class AIService {
           systemParts.push(`\nActive Appointment Context:\n${JSON.stringify(this._compactAppointmentContext(apptContext), null, 2)}`);
         }
       } catch (e) {
-        console.warn(`Failed to get appointment context for ${appointmentId}:`, e.message);
+        console.warn('Failed to get appointment context for %s: %s', appointmentId, e.message);
       }
     }
 

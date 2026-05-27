@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sarvekshanam — Security Operations Platform</title>
+  <meta name="description" content="Sarvekshanam is a multi-system security operations platform with AI-assisted analysis and real-time sync." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- ── Auth Overlay ──────────────────────────────────────────────────── -->
+  <div id="auth-overlay" style="position:fixed;inset:0;z-index:50;display:flex;">
+
+    <!-- Left panel -->
+    <div class="auth-left" id="auth-left-panel" style="display:flex;">
+      <div class="auth-left-grid"></div>
+
+      <div>
+        <div class="auth-logo-mark">S</div>
+        <div class="auth-headline" style="position:relative;z-index:1;">
+          SARV<em>EK</em>SHANAM
+        </div>
+        <p class="auth-brief">
+          Advanced multi-system fleet management and AI-assisted analysis platform.
+        </p>
+      </div>
+
+      <div class="auth-footer-text">
+        v2.0.0-beta &middot; Restricted Access<br>
+        Authorized Personnel Only
+      </div>
+    </div>
+
+    <!-- Right: form -->
+    <div class="auth-right">
+      <div class="auth-form-wrap">
+
+        <div class="auth-mobile-logo" id="auth-mobile-logo">
+          <div class="auth-logo-mark" style="margin-bottom:0;">S</div>
+        </div>
+
+        <div class="auth-eyebrow">Access Portal</div>
+        <h2 class="auth-title" id="auth-heading">Welcome<br>back.</h2>
+
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="auth-tab-login" onclick="Auth.showLogin()">Login</button>
+          <button class="auth-tab" id="auth-tab-register" onclick="Auth.showRegister()">Register</button>
+        </div>
+
+        <form id="auth-form" onsubmit="Auth.submit(event)">
+          <div class="field">
+            <label for="auth-username">Username</label>
+            <input id="auth-username" type="text" placeholder="Enter username" autocomplete="username" required />
+          </div>
+          <div class="field">
+            <label for="auth-password">Password</label>
+            <input id="auth-password" type="password" placeholder="Enter password" autocomplete="current-password" required />
+          </div>
+          <div id="auth-error" class="hidden"></div>
+          <button type="submit" id="auth-submit" class="auth-submit">
+            <span>Login</span><span>→</span>
+          </button>
+        </form>
+
+        <div id="sso-section" class="hidden">
+          <div class="auth-divider">
+            <div class="auth-divider-line"></div>
+            <span class="auth-divider-text">or</span>
+            <div class="auth-divider-line"></div>
+          </div>
+          <button class="auth-sso" onclick="Auth.loginSSO()">Enterprise SSO →</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main App ───────────────────────────────────────────────────────── -->
+  <div id="app" class="hidden">
+
+    <!-- Top Nav -->
+    <nav id="top-nav">
+      <div class="nav-brand">
+        <div class="nav-brand-icon">S</div>
+        <span class="nav-brand-name">Sarvekshanam</span>
+      </div>
+
+      <div class="nav-tabs">
+        <button id="tab-power" class="nav-tab active" onclick="App.switchTab('power')" title="Power User">
+          <span class="nav-tab-icon">⬡</span> Power User
+        </button>
+        <button id="tab-ai" class="nav-tab" onclick="App.switchTab('ai')" title="AI Chat">
+          <span class="nav-tab-icon">◆</span> AI Chat
+        </button>
+        <button id="tab-bulk" class="nav-tab" onclick="App.switchTab('bulk')" title="Bulk Scan">
+          <span class="nav-tab-icon">≡</span> Bulk Scan
+        </button>
+        <button id="tab-appointments" class="nav-tab" onclick="App.switchTab('appointments')" title="Appointments">
+          <span class="nav-tab-icon">◉</span> Appointments
+        </button>
+        <button id="tab-runners" class="nav-tab" onclick="App.switchTab('runners')" title="Remote Runners">
+          <span class="nav-tab-icon">⌘</span> Runners
+        </button>
+        <button id="tab-cmd" class="nav-tab" onclick="App.switchTab('cmd')" title="Commands">
+          <span class="nav-tab-icon">$</span> Commands
+        </button>
+        <button id="tab-trash" class="nav-tab admin-only" onclick="App.switchTab('trash')" title="Trash" data-admin="true">
+          <span class="nav-tab-icon">🗑️</span> Trash
+        </button>
+      </div>
+
+      <div class="nav-right">
+        <!-- Appointment selector -->
+        <select id="appointment-selector" onchange="Appointments.setActive(this.value)" title="Active context"></select>
+
+        <!-- WS status -->
+        <div id="ws-indicator" title="WebSocket status">
+          <span class="ws-dot disconnected" id="ws-dot"></span>
+          <span id="ws-label" class="ws-label" style="display:none;">Connecting…</span>
+        </div>
+
+        <!-- Hidden badges (kept for JS compatibility) -->
+        <div id="queue-depth-badge" class="hidden" style="display:none !important;"><span id="queue-depth-label"></span></div>
+        <div id="active-appointment-badge" style="display:none !important;"><span id="active-appointment-badge-label"></span></div>
+        <div id="session-badge" class="hidden" style="display:none !important;"><span id="session-badge-name"></span></div>
+
+        <!-- Settings (admin) -->
+        <button class="nav-icon-btn" id="btn-settings" onclick="App.showSettings()" title="Settings" data-admin>⚙</button>
+
+        <!-- User menu -->
+        <div id="user-menu" onclick="App.toggleUserMenu()">
+          <div id="user-avatar">U</div>
+          <span id="user-name" style="display:none;">User</span>
+          <div id="user-dropdown" class="hidden">
+            <div class="dd-header">
+              <div class="dd-username" id="dd-username">—</div>
+              <span id="dd-role" class="role-badge">viewer</span>
+            </div>
+            <button class="dd-btn" onclick="Auth.logout()">Logout →</button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── Power User Panel ────────────────────────────────────────────── -->
+    <section id="panel-power" class="panel active">
+      <aside class="pu-sidebar">
+        <div class="pu-sidebar-header">
+          <div class="pu-sidebar-title">Modules</div>
+          <input id="module-search" type="text" placeholder="Filter modules…" oninput="PowerUser.filterModules(this.value)" />
+        </div>
+        <div id="module-tree">
+          <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Loading modules…</p>
+        </div>
+      </aside>
+
+      <main class="pu-main">
+        <!-- Module config -->
+        <div id="module-config" class="hidden">
+          <div class="module-config-header">
+            <div>
+              <h2 id="module-title">Module</h2>
+              <p id="module-desc"></p>
+            </div>
+            <span id="module-category-badge"></span>
+          </div>
+          <div id="module-params"></div>
+
+          <div class="module-options-bar">
+            <div class="opt-group">
+              <label>Run on</label>
+              <select id="pu-runner-select" class="select-styled">
+                <option value="">Auto (Queue)</option>
+              </select>
+            </div>
+            <div class="opt-group">
+              <label>Proxy Mode</label>
+              <select id="pu-proxy-mode" class="select-styled">
+                <option value="">Default</option>
+                <option value="none">None</option>
+                <option value="hop">Hop</option>
+                <option value="direct">Direct</option>
+              </select>
+            </div>
+            <div class="opt-group">
+              <label>Proxy Target</label>
+              <input id="pu-proxy-target" type="text" class="input" placeholder="Optional URL" style="font-size:0.75rem;" />
+            </div>
+          </div>
+
+          <div class="module-action-bar">
+            <button class="btn btn-primary btn-lg" onclick="PowerUser.runScan()">▶ Run Scan</button>
+            <button class="btn btn-secondary" onclick="PowerUser.addToBulk()">+ Add to Bulk</button>
+            <button class="btn btn-ghost" style="margin-left:auto;" onclick="PowerUser.clearConsole()">Clear</button>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div id="module-empty">
+          <div class="empty-icon">⬡</div>
+          <div class="empty-title">Select a Module</div>
+          <div class="empty-sub">Choose a module from the left panel to configure and run scans.</div>
+        </div>
+
+        <!-- Results Console -->
+        <div id="results-card" class="hidden">
+          <div class="console-header">
+            <div class="console-title">
+              <span class="console-dot"></span>
+              Console Output
+              <span id="result-status-badge" class="status-badge"></span>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-ghost btn-sm" onclick="PowerUser.copyResults()">Copy</button>
+              <button class="btn btn-secondary btn-sm" onclick="PowerUser.sendToAI()">→ AI</button>
+            </div>
+          </div>
+          <pre id="results-console"></pre>
+        </div>
+
+        <!-- Session History -->
+        <div id="session-list-card" class="card">
+          <div class="card-header">
+            <span class="card-title">Recent Sessions</span>
+            <div style="display:flex; gap: 8px;">
+              <select id="session-filter-mode" class="select-styled" style="padding:2px 8px; font-size:0.75rem;" onchange="PowerUser.refreshSessions()">
+                <option value="appointment">This Appointment</option>
+                <option value="global">Global</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="PowerUser.refreshSessions()">Refresh</button>
+            </div>
+          </div>
+          <div id="session-list">
+            <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">No sessions yet.</p>
+          </div>
+        </div>
+      </main>
+    </section>
+    <!-- ── Panel: AI Chat ──────────────────────────────────────────────── -->
+    <section id="panel-ai" class="panel ai-layout">
+      <aside class="ai-sidebar">
+        <!-- Chat Controls -->
+        <div style="padding:12px; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="AIChat.startNewChat()">+ New Chat</button>
+          <button class="btn btn-ghost btn-sm" onclick="AIChat.renameChat()" title="Rename Chat">✏️</button>
+        </div>
+        
+        <!-- RAG search -->
+        <div id="rag-search-bar">
+          <span style="color:var(--fg-4);font-size:0.9rem;">🔍</span>
+          <input id="rag-search-input" type="text" placeholder="Search knowledge base…"
+            onkeydown="if(event.key==='Enter')AIChat.ragSearch()" />
+        </div>
+        <div id="rag-results" class="hidden">
+          <div id="rag-results-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+
+        <!-- Chat History List -->
+        <div id="chat-history-list" class="chat-history-list">
+          <!-- Items populated by JS -->
+        </div>
+      </aside>
+
+      <main class="ai-main">
+        <header class="ai-header">
+          <div class="ai-header-left">
+            <h2>Agentic Analysis</h2>
+            <div id="ai-context-indicator">No scan context attached</div>
+          </div>
+          <div class="ai-header-right" style="display:flex;align-items:center;gap:8px;">
+            <select id="ai-provider" class="select-styled" onchange="AIChat.onProviderChange()">
+              <!-- Populated by JS -->
+            </select>
+            <button class="btn btn-primary btn-sm hidden" id="ai-pkg-btn" onclick="AIChat.togglePackage()">Install</button>
+            
+            <div style="display:flex;align-items:center;gap:4px;">
+              <select id="ai-model" class="select-styled">
+                <!-- Populated by JS -->
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="AIChat.manageModels()" title="Manage Models">⚙️</button>
+            </div>
+            
+            <span id="rag-doc-count" style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);"></span>
+            <button class="btn btn-secondary btn-sm" onclick="AIChat.attachSession()">📎 Attach</button>
+            <button class="btn btn-ghost btn-sm" onclick="AIChat.clearChat()">Clear</button>
+          </div>
+        </header>
+
+        <div id="chat-messages">
+          <div class="chat-welcome">
+            <div class="chat-welcome-icon">◆</div>
+            <h3>AI Security Assistant</h3>
+            <p>Ask me to explain scan results, identify vulnerabilities, or suggest remediation steps.<br><br>
+            <em style="color:var(--fg-4);">Tip: Run a scan in Power User, then click "📎 Attach" to add it as context.</em></p>
+          </div>
+        </div>
+
+        <div class="chat-input-bar">
+          <textarea id="chat-input" placeholder="Ask the AI about your scan results…" rows="2"
+            onkeydown="AIChat.handleKey(event)"></textarea>
+          <button id="chat-send" onclick="AIChat.send()">
+            <span>Send</span><span>↑</span>
+          </button>
+        </div>
+      </main>
+    </section>
+
+    <!-- ── Bulk Scan Panel ─────────────────────────────────────────────── -->
+    <section id="panel-bulk" class="panel">
+      <div class="bulk-layout">
+        <div class="bulk-form-col">
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Bulk Scan</div>
+                <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);margin-top:2px;">Run modules across many targets simultaneously.</div>
+              </div>
+            </div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+
+              <div class="field-group">
+                <label class="input-label">Scan Name</label>
+                <input id="bulk-name" type="text" class="input" placeholder="e.g. Internal Network Audit" />
+              </div>
+
+              <div class="field-group">
+                <label class="input-label">Targets <span style="text-transform:none;letter-spacing:0;color:var(--fg-4);font-style:italic;">(one per line or comma-separated)</span></label>
+                <textarea id="bulk-targets" class="input" style="min-height:130px;resize:vertical;" placeholder="192.168.1.1&#10;192.168.1.2&#10;10.0.0.0/24"></textarea>
+              </div>
+
+              <div>
+                <label class="input-label" style="margin-bottom:8px;">Modules</label>
+                <div id="bulk-modules" class="bulk-modules-grid">
+                  <p style="font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Loading…</p>
+                </div>
+              </div>
+
+              <div id="bulk-params-section" class="hidden" style="margin-top:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                  <label class="input-label" style="margin:0;">Module Parameters</label>
+                  <select id="bulk-param-mode" class="select-styled" style="padding:2px 8px;font-size:0.75rem;" onchange="BulkScan.renderParams()">
+                    <option value="grouped">Group Common Parameters</option>
+                    <option value="separate">Separate by Module</option>
+                  </select>
+                </div>
+                <div id="bulk-params-container" style="background:var(--bg-3);padding:12px;border:1px solid var(--border);border-radius:4px;display:flex;flex-direction:column;gap:10px;">
+                </div>
+              </div>
+
+              <div style="display:flex;gap:10px;flex-wrap:wrap;padding:12px;background:var(--bg-3);border:1px solid var(--border);">
+                <div style="flex:1;min-width:130px;">
+                  <label class="input-label">Run on</label>
+                  <select id="bulk-runner-select" class="select-styled" style="width:100%;">
+                    <option value="">Auto (Queue)</option>
+                  </select>
+                </div>
+                <div style="flex:1;min-width:130px;">
+                  <label class="input-label">Proxy Mode</label>
+                  <select id="bulk-proxy-mode" class="select-styled" style="width:100%;">
+                    <option value="">Default</option>
+                    <option value="none">None</option>
+                    <option value="hop">Hop</option>
+                    <option value="direct">Direct</option>
+                  </select>
+                </div>
+                <div style="flex:1;min-width:130px;">
+                  <label class="input-label">Proxy Target</label>
+                  <input id="bulk-proxy-target" type="text" class="input" placeholder="Optional URL" />
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;">
+                <button class="btn btn-primary btn-lg" onclick="BulkScan.run()">▶ Start Bulk Scan</button>
+                <span id="bulk-count-badge" style="font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);">0 targets, 0 modules</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="bulk-progress-col">
+          <div class="card" style="position:sticky;top:0;">
+            <div class="card-header">
+              <span class="card-title">Progress</span>
+              <button class="btn btn-ghost btn-sm" onclick="BulkScan.refresh()">Refresh</button>
+            </div>
+            <div id="bulk-progress-list" style="min-height:120px;background:var(--bg-3);">
+              <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">No bulk scans running.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Commands Panel ─────────────────────────────────────────────── -->
+    <section id="panel-cmd" class="panel">
+      <div class="cmd-layout">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Command Centre</div>
+              <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);margin-top:2px;">Submit commands for admin approval.</div>
+            </div>
+          </div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+            <select id="cmd-runner" class="select-styled" style="width:200px;">
+              <option value="">Select Runner…</option>
+            </select>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <input id="cmd-input" type="text" class="input" placeholder="Enter command (e.g. nmap -sV 192.168.1.1)"
+                onkeydown="if(event.key==='Enter')Commands.submit()" style="flex:1;" />
+              <button class="btn btn-primary" onclick="Commands.submit()">Submit</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Command History</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <select id="cmd-filter" class="select-styled" onchange="Commands.filter(this.value)">
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="executed">Executed</option>
+                <option value="failed">Failed</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="Commands.refresh()">Refresh</button>
+            </div>
+          </div>
+          <div id="cmd-list" style="background:var(--bg-3);">
+            <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Loading…</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Remote Runners Panel ───────────────────────────────────────── -->
+    <section id="panel-runners" class="panel">
+      <div class="runners-layout">
+        <div style="flex:2;min-width:0;">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Remote Runners</div>
+                <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);margin-top:2px;">Manage distributed Go execution nodes.</div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-ghost btn-sm" onclick="Runners.load()">Check Status</button>
+                <button class="btn btn-primary btn-sm" onclick="Runners.showAddModal()">+ Add Runner</button>
+              </div>
+            </div>
+            <div id="runners-list" class="runners-grid" style="padding:14px;background:var(--bg-3);">
+              <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;grid-column:1/-1;">Loading runners…</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;min-width:0;">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Runner Groups</div>
+                <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);margin-top:2px;">Auto-formed load balancing groups.</div>
+              </div>
+            </div>
+            <div id="groups-list" style="padding:14px;background:var(--bg-3);display:flex;flex-direction:column;gap:10px;">
+              <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Loading groups…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Appointments Panel ──────────────────────────────────────────── -->
+    <section id="panel-appointments" class="panel">
+      <div class="appts-layout">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Appointments</div>
+              <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);margin-top:2px;">Manage scan contexts and AI chat histories.</div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" onclick="Appointments.fetchAll()">Refresh</button>
+              <button class="btn btn-primary btn-sm" onclick="Appointments.showCreateModal()">+ New Appointment</button>
+            </div>
+          </div>
+          <div id="appointments-list" class="appointments-grid" style="padding:14px;background:var(--bg-3);">
+            <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;grid-column:1/-1;">Loading…</p>
+          </div>
+        </div>
+
+        <div id="appointment-detail" class="hidden card">
+          <div class="card-header">
+            <span class="card-title" id="appt-detail-title">Appointment Detail</span>
+            <button class="btn btn-ghost btn-sm" onclick="Appointments.hideDetail()">✕ Close</button>
+          </div>
+          <div class="appt-detail-panels">
+            <div class="appt-sub-panel" id="appt-scans-panel">
+              <div class="appt-sub-title">Linked Scans</div>
+              <div id="appt-scans-list">
+                <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">No scans linked.</p>
+              </div>
+            </div>
+            <div class="appt-sub-panel" id="appt-chats-panel">
+              <div class="appt-sub-title">Chat History</div>
+              <div id="appt-chats-list">
+                <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">No chats yet.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Panel: Trash ────────────────────────────────────────────────── -->
+    <section id="panel-trash" class="panel">
+      <div class="trash-layout">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Trash</div>
+              <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);margin-top:2px;">Soft-deleted items · auto-erased after 1 hour.</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="trashManager.loadTrash()">Refresh</button>
+          </div>
+          <div id="trash-container" style="padding:14px;background:var(--bg-3);">
+            <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Loading trash…</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /#app -->
+
+  <!-- ── Settings Modal ────────────────────────────────────────────────── -->
+  <div id="settings-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">Global Settings</span>
+        <button class="btn btn-ghost btn-sm" onclick="App.hideSettings()">✕ Close</button>
+      </div>
+
+      <div class="field-group">
+        <label class="input-label">Multi-System Topology (Proxy Mode)</label>
+        <select id="setting-proxy-mode" class="select-styled" style="width:100%;" onchange="App.onProxyModeChange()">
+          <option value="none">None (Local Execution)</option>
+          <option value="hop">Hop (Backend → Proxy → Target)</option>
+          <option value="direct">Direct (Browser → Proxy → Target)</option>
+        </select>
+        <span id="proxy-hint"></span>
+      </div>
+
+      <div class="field-group" id="proxy-target-group">
+        <label class="input-label">Proxy Target URL</label>
+        <input id="setting-proxy-target" type="text" class="input" placeholder="http://192.168.1.10:8080" />
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+      <div class="field-group">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <label class="input-label" style="margin:0;">API Keys</label>
+          <button class="btn btn-secondary btn-sm" onclick="App.generateApiKey()">+ Generate Key</button>
+        </div>
+        <div id="api-key-reveal" class="hidden">
+          <p>⚠ Copy this key now — it won't be shown again!</p>
+          <code id="api-key-value"></code>
+          <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('api-key-value').textContent);showToast('Copied!')">📋 Copy</button>
+        </div>
+        <div id="api-keys-list">
+          <p style="font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Loading keys…</p>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--border);">
+        <button class="btn btn-ghost" onclick="App.hideSettings()">Cancel</button>
+        <button class="btn btn-primary" onclick="App.saveSettings()">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Add Runner Modal ───────────────────────────────────────────────── -->
+  <div id="add-runner-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">Add Remote Runner</span>
+        <button class="btn btn-ghost btn-sm" onclick="Runners.hideAddModal()">✕</button>
+      </div>
+      <form id="add-runner-form" onsubmit="Runners.submitAddForm(event)">
+        <div class="field-group">
+          <label class="input-label">Runner Name</label>
+          <input id="runner-name-input" type="text" class="input" placeholder="e.g. Edge Node EU" required />
+        </div>
+        <div class="field-group">
+          <label class="input-label">Runner URL</label>
+          <input id="runner-url-input" type="url" class="input" placeholder="http://192.168.1.10:8080" required />
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--border);">
+          <button type="button" class="btn btn-ghost" onclick="Runners.hideAddModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Runner</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── New Appointment Modal ──────────────────────────────────────────── -->
+  <div id="new-appointment-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">New Appointment</span>
+        <button class="btn btn-ghost btn-sm" onclick="Appointments.hideCreateModal()">✕</button>
+      </div>
+      <form id="new-appointment-form" onsubmit="Appointments.submitCreate(event)">
+        <div class="field-group">
+          <label class="input-label">Appointment Name</label>
+          <input id="appt-name-input" type="text" class="input" placeholder="e.g. Audit Q3" required />
+        </div>
+        <div class="field-group">
+          <label class="input-label">Mode</label>
+          <select id="appt-mode-input" class="select-styled" style="width:100%;">
+            <option value="hybrid">Hybrid (Manual + AI)</option>
+            <option value="manual">Manual Only</option>
+            <option value="automated">AI Automated</option>
+          </select>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--border);">
+          <button type="button" class="btn btn-ghost" onclick="Appointments.hideCreateModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Context</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Manage Models Modal ──────────────────────────────────────────── -->
+  <div id="manage-models-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;">
+    <div class="modal-box" style="width:400px;">
+      <div class="modal-header">
+        <span class="modal-title" id="manage-models-title">Manage Models</span>
+        <button class="btn btn-ghost btn-sm" onclick="AIChat.closeManageModels()">✕</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <button id="btn-fetch-models" class="btn btn-secondary btn-sm" onclick="AIChat.fetchModels()">Fetch Latest API Models</button>
+      </div>
+      <div style="background:var(--bg-3);padding:10px;border-radius:4px;max-height:200px;overflow-y:auto;margin-bottom:12px;" id="model-list-ui">
+        <!-- populated by js -->
+      </div>
+      <div style="display:flex;gap:8px;padding-top:16px;border-top:1px solid var(--border);">
+        <input type="text" id="new-model-name" class="input" placeholder="Custom model name" style="flex:1;" onkeydown="if(event.key==='Enter')AIChat.addModel()" />
+        <button class="btn btn-primary" onclick="AIChat.addModel()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/wsClient.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/dialog.js"></script>
+  <script src="/js/customSelect.js"></script>
+  <script src="/js/powerUser.js"></script>
+  <script src="/js/aiChat.js"></script>
+  <script src="/js/bulkScan.js"></script>
+  <script src="/js/commands.js"></script>
+  <script src="/js/appointments.js"></script>
+  <script src="/js/runners.js"></script>
+  <script src="/js/trash.js"></script>
+  <script src="/js/main.js"></script>
+  
+  <!-- ── Global Custom Dialog Modal ─────────────────────────────────────── -->
+  <div id="global-dialog-modal" class="hidden" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);">
+    <div class="modal-box" style="max-width:400px;width:100%;padding:24px;">
+      <div id="global-dialog-title" class="modal-title" style="margin-bottom:12px;font-size:1.1rem;"></div>
+      <div id="global-dialog-message" style="font-family:var(--font-mono);font-size:0.8rem;color:var(--fg-2);margin-bottom:16px;"></div>
+      <input id="global-dialog-input" type="text" class="input hidden" style="margin-bottom:16px;" />
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button id="global-dialog-cancel" class="btn btn-ghost hidden">Cancel</button>
+        <button id="global-dialog-confirm" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tool Confirmation Modal ──────────────────────────────────────────── -->
+  <div id="tool-confirm-modal" class="hidden" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);">
+    <div class="modal-box" style="max-width:600px;width:100%;">
+      <div class="modal-header">
+        <span class="modal-title" style="color:var(--amber);">⚠ Tool Execution Request</span>
+      </div>
+      <div style="font-family:var(--font-sans);font-size:0.85rem;color:var(--fg-2);margin-bottom:12px;">
+        The AI has requested to run the following tools. Please review the parameters carefully before allowing execution.
+      </div>
+      <div id="tool-confirm-details" style="background:var(--bg-3);padding:12px;border-radius:4px;max-height:300px;overflow-y:auto;margin-bottom:16px;font-family:var(--font-mono);font-size:0.75rem;white-space:pre-wrap;border-left:3px solid var(--amber);">
+        <!-- details -->
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--border);">
+        <button id="tool-confirm-deny" class="btn btn-ghost" style="color:var(--accent-red);">Deny Execution</button>
+        <button id="tool-confirm-allow" class="btn btn-primary">Approve & Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Fix modal show/hide for the new CSS
+    const _origShowSettings = typeof App !== 'undefined' && App.showSettings;
+    document.addEventListener('DOMContentLoaded', () => {
+      // Patch modal display to use flex
+      const patchModal = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const obs = new MutationObserver(() => {
+          if (!el.classList.contains('hidden')) {
+            el.style.display = 'flex';
+          } else {
+            el.style.display = 'none';
+          }
+        });
+        obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+      };
+      patchModal('settings-modal');
+      patchModal('add-runner-modal');
+      patchModal('new-appointment-modal');
+      patchModal('manage-models-modal');
+      patchModal('tool-confirm-modal');
+    });
+  </script>
+</body>
+</html>

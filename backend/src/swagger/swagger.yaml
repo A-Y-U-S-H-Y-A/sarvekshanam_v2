@@ -1,0 +1,610 @@
+openapi: 3.0.3
+info:
+  title: Sarvekshanam API
+  description: |
+    **Sarvekshanam** — Multi-system Security Operations Platform.
+
+    ## Authentication
+    All API routes (except `/auth/register` and `/auth/login`) require a `Bearer <token>` header.
+    Obtain a token via `POST /auth/login`.
+
+    ## WebSocket
+    Connect to `ws://<host>/ws` and send:
+    ```json
+    { "type": "AUTH", "token": "<jwt>" }
+    { "type": "SUBSCRIBE", "sessionId": "<id>" }
+    ```
+  version: 1.0.0
+  contact:
+    name: Sarvekshanam
+
+servers:
+  - url: /
+    description: Current server
+
+tags:
+  - name: Auth
+    description: Registration, login, profile
+  - name: Modules
+    description: Available scan modules and categories
+  - name: Scans
+    description: Scan sessions – single and bulk
+  - name: Commands
+    description: Command submission and admin approval queue
+  - name: AI
+    description: AI chat with scan context injection
+  - name: API Keys
+    description: Public API Key management
+  - name: JWKS
+    description: JSON Web Key Set for master-slave auth
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Success:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:    { type: object }
+
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            status:  { type: integer }
+            message: { type: string }
+
+    User:
+      type: object
+      properties:
+        id:         { type: string, format: uuid }
+        username:   { type: string }
+        role:       { type: string, enum: [viewer, admin] }
+        created_at: { type: string, format: date-time }
+
+    ModuleParam:
+      type: object
+      properties:
+        name:        { type: string }
+        type:        { type: string }
+        required:    { type: boolean }
+        description: { type: string }
+        default:     {}
+        placeholder: { type: string }
+
+    ModuleMeta:
+      type: object
+      properties:
+        id:          { type: string }
+        name:        { type: string }
+        description: { type: string }
+        category:    { type: string }
+        parameters:
+          type: array
+          items: { $ref: '#/components/schemas/ModuleParam' }
+
+    ScanSession:
+      type: object
+      properties:
+        id:        { type: string, format: uuid }
+        userId:    { type: string }
+        name:      { type: string }
+        mode:      { type: string, enum: [single, bulk] }
+        targets:   { type: array, items: { type: string } }
+        moduleIds: { type: array, items: { type: string } }
+        params:    { type: object }
+        status:    { type: string, enum: [pending, running, completed, failed, cancelled] }
+        results:   { type: object, nullable: true }
+        error:     { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CommandRecord:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        userId:      { type: string }
+        username:    { type: string }
+        command:     { type: string }
+        status:      { type: string, enum: [pending, approved, rejected, executing, executed, failed] }
+        reason:      { type: string, nullable: true }
+        requestedAt: { type: string, format: date-time }
+        resolvedBy:  { type: string, nullable: true }
+        resolvedAt:  { type: string, nullable: true }
+        executedAt:  { type: string, nullable: true }
+        completedAt: { type: string, nullable: true }
+        output:      { type: string, nullable: true }
+        error:       { type: string, nullable: true }
+
+    AIMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:    { type: string, enum: [system, user, assistant] }
+        content: { type: string }
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ── Auth ──────────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new account (viewer role)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string, minLength: 3 }
+                password: { type: string, minLength: 6 }
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          token: { type: string }
+                          user:  { $ref: '#/components/schemas/User' }
+        '400': { description: Validation error }
+        '409': { description: Username taken }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          token: { type: string }
+                          user:  { $ref: '#/components/schemas/User' }
+        '401': { description: Bad credentials }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user: { $ref: '#/components/schemas/User' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (client discards token)
+      responses:
+        '200': { description: OK }
+
+  /auth/oidc/status:
+    get:
+      tags: [Auth]
+      summary: Check if OIDC SSO is enabled
+      security: []
+      responses:
+        '200':
+          description: OIDC status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          enabled: { type: boolean }
+                          issuer:  { type: string, nullable: true }
+
+  /auth/oidc:
+    get:
+      tags: [Auth]
+      summary: Initiate OIDC SSO flow (redirects to IdP)
+      security: []
+      responses:
+        '302': { description: Redirect to Identity Provider }
+        '404': { description: OIDC not configured }
+
+  /auth/oidc/callback:
+    get:
+      tags: [Auth]
+      summary: OIDC SSO callback from IdP
+      security: []
+      responses:
+        '302': { description: Redirect to frontend with JWT token or error }
+        '404': { description: OIDC not configured }
+
+  # ── Health ─────────────────────────────────────────────────────────────────
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Service health check
+      security: []
+      responses:
+        '200': { description: OK }
+
+  # ── Modules ────────────────────────────────────────────────────────────────
+  /api/modules:
+    get:
+      tags: [Modules]
+      summary: List all modules grouped by category
+      responses:
+        '200':
+          description: Module listing
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          categories:
+                            type: object
+                            additionalProperties:
+                              type: array
+                              items: { $ref: '#/components/schemas/ModuleMeta' }
+                          total: { type: integer }
+
+  /api/modules/{id}:
+    get:
+      tags: [Modules]
+      summary: Get module detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Module detail }
+        '404': { description: Not found }
+
+  # ── Scans ──────────────────────────────────────────────────────────────────
+  /api/scans:
+    post:
+      tags: [Scans]
+      summary: Start a single-target scan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target, moduleIds]
+              properties:
+                name:      { type: string }
+                target:    { type: string, example: '192.168.1.1' }
+                moduleIds:
+                  type: array
+                  items: { type: string }
+                  example: ['nmap-quick-scan', 'nmap-port-scan']
+                params:
+                  type: object
+                  description: moduleId → params map
+      responses:
+        '202': { description: Scan started }
+        '400': { description: Validation error }
+
+    get:
+      tags: [Scans]
+      summary: List scan sessions
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200': { description: Session list }
+
+  /api/scans/bulk:
+    post:
+      tags: [Scans]
+      summary: Bulk scan — multiple targets at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targets, moduleIds]
+              properties:
+                name:      { type: string }
+                targets:
+                  type: array
+                  items: { type: string }
+                  example: ['192.168.1.1', '192.168.1.2', '10.0.0.0/24']
+                moduleIds:
+                  type: array
+                  items: { type: string }
+                params: { type: object }
+      responses:
+        '202': { description: Bulk scan sessions started }
+
+  /api/scans/{id}:
+    get:
+      tags: [Scans]
+      summary: Get scan session detail and results
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200': { description: Session detail }
+        '404': { description: Not found }
+
+    delete:
+      tags: [Scans]
+      summary: Cancel / delete a scan session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200': { description: Deleted }
+
+  # ── Commands ───────────────────────────────────────────────────────────────
+  /api/commands:
+    post:
+      tags: [Commands]
+      summary: Submit a command for admin approval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [command]
+              properties:
+                command: { type: string, example: 'ping -c 4 8.8.8.8' }
+      responses:
+        '202': { description: Command queued }
+        '403': { description: Command not in allowlist }
+
+    get:
+      tags: [Commands]
+      summary: List commands (admin sees all, users see own)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200': { description: Command list }
+
+  /api/commands/{id}:
+    get:
+      tags: [Commands]
+      summary: Get a single command record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200': { description: Command record }
+        '404': { description: Not found }
+
+  /api/commands/{id}/approve:
+    post:
+      tags: [Commands]
+      summary: '[Admin] Approve and execute a pending command'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200': { description: Command approved and executed }
+        '403': { description: Admin only }
+
+  /api/commands/{id}/reject:
+    post:
+      tags: [Commands]
+      summary: '[Admin] Reject a pending command'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200': { description: Command rejected }
+        '403': { description: Admin only }
+
+  # ── AI ─────────────────────────────────────────────────────────────────────
+  /api/ai/chat:
+    post:
+      tags: [AI]
+      summary: Chat with AI (Server-Sent Events streaming)
+      description: |
+        Returns a `text/event-stream` response.
+        Each event: `data: {"content": "..."}` or `data: [DONE]`.
+        If `sessionId` is provided, scan results are injected as system context.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                provider:
+                  type: string
+                  enum: [groq, openai, ollama]
+                  default: groq
+                model:     { type: string, example: 'llama-3.1-8b-instant' }
+                sessionId: { type: string, description: 'Inject scan session as context' }
+                messages:
+                  type: array
+                  items: { $ref: '#/components/schemas/AIMessage' }
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+  /api/ai/providers:
+    get:
+      tags: [AI]
+      summary: List available AI providers and models
+      responses:
+        '200': { description: Provider list }
+
+  # ── API Keys ───────────────────────────────────────────────────────────────
+  /api/keys:
+    post:
+      tags: [API Keys]
+      summary: Generate a new API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:   { type: string, default: 'Untitled Key' }
+                scopes: { type: array, items: { type: string }, default: ['*'] }
+      responses:
+        '201':
+          description: API key generated (raw key returned once)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:         { type: string, format: uuid }
+                          name:       { type: string }
+                          key:        { type: string, description: 'Raw API key (store securely)' }
+                          scopes:     { type: array, items: { type: string } }
+                          created_at: { type: string, format: date-time }
+
+    get:
+      tags: [API Keys]
+      summary: List user's API keys
+      responses:
+        '200':
+          description: List of API keys (without raw keys)
+
+  /api/keys/{id}:
+    delete:
+      tags: [API Keys]
+      summary: Revoke an API key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200': { description: API key revoked }
+        '403': { description: Not authorized }
+        '404': { description: API key not found }
+
+  # ── JWKS ───────────────────────────────────────────────────────────────────
+  /api/.well-known/jwks.json:
+    get:
+      tags: [JWKS]
+      summary: Public JWKS endpoint for master-slave auth
+      security: []
+      responses:
+        '200':
+          description: JSON Web Key Set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items: { type: object }

@@ -1,0 +1,9 @@
+{
+  "id": "http-header-check",
+  "name": "HTTP Header Check",
+  "description": "Checks the security headers of a given URL",
+  "entry": "main.py",
+  "parameters": [
+    { "name": "target", "required": true, "description": "Target URL (e.g. https://example.com)" }
+  ]
+}

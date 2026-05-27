@@ -1,0 +1,28 @@
+{
+  "id": "nmap-port-scan",
+  "name": "Nmap Port & Service Scan",
+  "description": "Scans specified ports and identifies services/versions. Uses `nmap -sV`.",
+  "category": "Network",
+  "language": "node",
+  "entry": "main.js",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target host or IP address"
+    },
+    {
+      "name": "ports",
+      "type": "string",
+      "required": false,
+      "description": "Port range or list (e.g. 22,80,443 or 1-65535)"
+    },
+    {
+      "name": "timing",
+      "type": "select",
+      "required": false,
+      "description": "Nmap timing template (T1=slowest, T5=fastest)"
+    }
+  ]
+}

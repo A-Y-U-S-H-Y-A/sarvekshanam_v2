@@ -1,0 +1,22 @@
+{
+  "id": "dns-lookup",
+  "name": "DNS Lookup",
+  "description": "Performs a DNS lookup on a target domain.",
+  "category": "Network",
+  "language": "node",
+  "entry": "main.js",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target domain"
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "required": false,
+      "description": "DNS Record type (A, MX, TXT, etc.)"
+    }
+  ]
+}

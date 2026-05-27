@@ -1,0 +1,16 @@
+{
+  "id": "nmap-host-discovery",
+  "name": "Nmap Host Discovery",
+  "description": "Pings a host/range to discover live hosts (no port scan). Uses `nmap -sn`.",
+  "category": "Network",
+  "language": "node",
+  "entry": "main.js",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target host, IP address, or CIDR range (e.g. 192.168.1.0/24)"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "name": "sarvekshanam-backend",
+  "version": "1.0.0",
+  "description": "Sarvekshanam – Multi-system Security Operations Platform (Backend)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon --watch src --watch .env src/server.js",
+    "test": "jest --forceExit --runInBand",
+    "test:coverage": "jest --coverage --forceExit --runInBand",
+    "test:unit": "jest tests/unit --forceExit --runInBand",
+    "test:integration": "jest tests/integration --forceExit --runInBand",
+    "make-admin": "node scripts/makeAdmin.js"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.0",
+    "@langchain/groq": "^0.1.0",
+    "@langchain/ollama": "^0.1.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.9.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "js-yaml": "^4.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "mysql2": "^3.22.2",
+    "node-cron": "^4.2.1",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "passport-local": "^1.0.0",
+    "passport-openidconnect": "^0.1.2",
+    "pg": "^8.20.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.8",
+    "sequelize-cli": "^6.6.5",
+    "sqlite-vec": "^0.1.9",
+    "sqlite3": "^6.0.1",
+    "swagger-ui-express": "^5.0.0",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.0",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000,
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/swagger/**",
+      "!src/server.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 70,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    }
+  }
+}

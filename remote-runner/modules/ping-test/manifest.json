@@ -1,0 +1,22 @@
+{
+  "id": "ping-test",
+  "name": "Ping Test",
+  "description": "Pings a target to check connectivity.",
+  "category": "Network",
+  "language": "node",
+  "entry": "main.js",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target host or IP address"
+    },
+    {
+      "name": "count",
+      "type": "number",
+      "required": false,
+      "description": "Number of ping requests to send"
+    }
+  ]
+}

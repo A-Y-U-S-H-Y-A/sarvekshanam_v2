@@ -377,7 +377,7 @@ class RunnerService {
           await SlaveGroupMember.create({ group_id: group.id, runner_id: id });
         }
       } catch (e) {
-        console.error(`[RunnerService] Failed to assign slave group for runner ${id}:`, e);
+        console.error('[RunnerService] Failed to assign slave group for runner %s:', id, e);
       }
     }
 

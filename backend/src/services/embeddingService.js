@@ -128,14 +128,15 @@ class EmbeddingService {
    * @returns {number[]}
    */
   _hashEmbed(text) {
-    if (typeof text !== 'string') text = String(text);
-    if (text.length > 100000) text = text.substring(0, 100000); // Prevent unbounded loop
+    // Ensure text is a string to prevent loop bound injection, and cap length
+    const safeText = String(text).substring(0, 100000);
 
     const dims = this._dimensions;
     const vec = new Float64Array(dims);
     let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-      hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+    const len = safeText.length;
+    for (let i = 0; i < len; i++) {
+      hash = ((hash << 5) - hash + safeText.charCodeAt(i)) | 0;
     }
     // Use hash as seed for deterministic pseudo-random vector
     let seed = Math.abs(hash);

@@ -1023,7 +1023,7 @@ class AIService {
     const moduleText = `${moduleMeta.id || ''} ${moduleMeta.name || ''}`.toLowerCase();
 
     if (moduleText.includes('port')) {
-      const portsMatch = text.match(/\bports?(?:\s+(?:are|is))?\s*[:=]?\s*([0-9][0-9,\- ]*)\b/i);
+      const portsMatch = text.match(/\bports?(?:\s+(?:are|is))?\s*[:=]?\s*([0-9]+(?:[\s,\-]+[0-9]+)*)\b/i);
       if (portsMatch && portsMatch[1]) {
         params.ports = portsMatch[1].replace(/\s+/g, '').replace(/,+$/, '');
       }

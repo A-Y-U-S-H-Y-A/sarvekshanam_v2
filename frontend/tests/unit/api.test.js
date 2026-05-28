@@ -47,10 +47,12 @@ describe('API Client', () => {
         expect(JSON.parse(callArgs[1].body)).toEqual({ username: 'user', password: 'pass' });
     });
     
-    it('appends query string for GET requests with params', async () => {
-        setMockResponse('/api/scans?limit=10', { success: true, data: [] });
+    it('sends POST request for list (search) with params', async () => {
+        setMockResponse('/api/scans/search', { success: true, data: [] });
         await API.scans.list({ limit: 10 });
         const callArgs = global.fetch.mock.calls[0];
-        expect(callArgs[0]).toBe('/api/scans?limit=10');
+        expect(callArgs[0]).toBe('/api/scans/search');
+        expect(callArgs[1].method).toBe('POST');
+        expect(JSON.parse(callArgs[1].body)).toEqual({ limit: 10 });
     });
 });

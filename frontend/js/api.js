@@ -49,8 +49,7 @@ const API = (() => {
     create: (payload) => request('POST', '/api/scans', payload),
     bulk:   (payload) => request('POST', '/api/scans/bulk', payload),
     list:   (params = {}) => {
-      const qs = new URLSearchParams(params).toString();
-      return request('GET', `/api/scans${qs ? '?' + qs : ''}`);
+      return request('POST', `/api/scans/search`, params);
     },
     get:    (id) => request('GET',    `/api/scans/${id}`),
     retry:  (id) => request('POST', `/api/scans/${id}/retry`),

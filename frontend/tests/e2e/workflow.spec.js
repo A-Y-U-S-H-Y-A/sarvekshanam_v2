@@ -23,11 +23,12 @@ test.describe('Main Workflow', () => {
     await page.route('**/api/scans/bulk', async route => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { sessions: [] } }) });
     });
+    await page.route('**/api/scans/search', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { sessions: [] } }) });
+    });
     await page.route('**/api/scans', async route => {
       if (route.request().method() === 'POST') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { session: { id: 'test-session-123', name: 'Test Scan', status: 'pending', targets: ['192.168.1.1'], moduleIds: ['nmap'] } } }) });
-      } else {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { sessions: [] } }) });
       }
     });
     await page.route('**/api/scans/*', async route => {

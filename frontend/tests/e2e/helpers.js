@@ -37,11 +37,12 @@ async function mockAllAPIs(page) {
   await page.route('**/api/scans/bulk', async route => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { sessions: [{ id: 'bulk1', status: 'pending', targets: ['1.1.1.1'], moduleIds: ['nmap'], createdAt: new Date().toISOString() }] } }) });
   });
+  await page.route('**/api/scans/search', async route => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { sessions: [] } }) });
+  });
   await page.route('**/api/scans', async route => {
     if (route.request().method() === 'POST') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { session: { id: 'sess1', name: 'Test', status: 'pending', targets: ['192.168.1.1'], moduleIds: ['nmap'] } } }) });
-    } else {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { sessions: [] } }) });
     }
   });
 

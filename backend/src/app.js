@@ -27,9 +27,22 @@ function createApp() {
 
   // ── CORS ──────────────────────────────────────────────────────────────────
   app.use(cors({
-    origin:      config.corsOrigins.length === 1 && config.corsOrigins[0] === '*'
-      ? '*'
-      : config.corsOrigins,
+    origin: function (requestOrigin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!requestOrigin) return callback(null, true);
+      
+      // If wildcard is in allowed origins, allow the request by reflecting the origin
+      if (config.corsOrigins.includes('*')) {
+        return callback(null, true);
+      }
+      
+      // Check if the specific origin is allowed
+      if (config.corsOrigins.includes(requestOrigin)) {
+        return callback(null, true);
+      }
+      
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   }));
 

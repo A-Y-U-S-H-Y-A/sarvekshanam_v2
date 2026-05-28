@@ -1023,17 +1023,24 @@ class AIService {
     const moduleText = `${moduleMeta.id || ''} ${moduleMeta.name || ''}`.toLowerCase();
 
     if (moduleText.includes('port')) {
-      // Two-step approach to avoid ReDoS from nested quantifiers on uncontrolled input:
-      // 1. Find the offset where port numbers begin (simple, non-backtracking anchor).
-      // 2. Linearly collect consecutive port numbers from that offset.
-      const portsAnchor = text.match(/\bports?\s*(?:are|is)?\s*[:=]?\s*(\d)/i);
-      if (portsAnchor) {
-        const startIdx = portsAnchor.index + portsAnchor[0].length - 1;
-        const candidate = text.slice(startIdx, startIdx + 256); // bound input length
-        const portNums = [...candidate.matchAll(/\d+/g)]
-          .map(m => m[0])
-          .join(',');
-        if (portNums) params.ports = portNums;
+      // Pure string scan — no regex on uncontrolled data, zero backtracking risk.
+      // 1. Find the keyword with indexOf (O(n), no backtracking).
+      // 2. Skip the keyword + any separators char-by-char.
+      // 3. Collect digit runs with a single /\d+/g on a bounded slice.
+      const ltext = text.toLowerCase();
+      const kwIdx = ltext.indexOf('ports') !== -1 ? ltext.indexOf('ports')
+                  : ltext.indexOf('port')  !== -1 ? ltext.indexOf('port')
+                  : -1;
+      if (kwIdx !== -1) {
+        const kwEnd = kwIdx + (ltext[kwIdx + 4] === 's' ? 5 : 4);
+        let i = kwEnd;
+        const len = Math.min(text.length, kwEnd + 64); // scan at most 64 chars past keyword
+        while (i < len && /[\s:=,\-]/.test(text[i]) && !/\d/.test(text[i])) i++;
+        if (i < len && /\d/.test(text[i])) {
+          const candidate = text.slice(i, i + 256);
+          const portNums = [...candidate.matchAll(/\d+/g)].map(m => m[0]).join(',');
+          if (portNums) params.ports = portNums;
+        }
       }
 
       const timingMatch = text.match(/\bT([0-5])\b/i) || text.match(/\btiming\s*(?:(?:is|=|:)\s*)?([0-5])\b/i);

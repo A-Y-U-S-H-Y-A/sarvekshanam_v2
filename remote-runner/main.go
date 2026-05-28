@@ -812,6 +812,12 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 	sandboxID := parts[0]
 	filename := parts[1]
 
+	// Explicitly block backslashes which could bypass the '/' split on Windows
+	if strings.Contains(filename, "\\") {
+		http.Error(w, "Invalid filename format", http.StatusBadRequest)
+		return
+	}
+
 	sandbox := GetSandbox(sandboxID)
 	if sandbox == nil {
 		http.Error(w, "Sandbox not found or expired", http.StatusNotFound)
@@ -820,12 +826,15 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 
 	filePath := filepath.Join(sandbox.Path, filename)
 	cleanPath := filepath.Clean(filePath)
-	if !strings.HasPrefix(cleanPath, filepath.Clean(sandbox.Path)) {
+	
+	// Secure path traversal check: verify the resolved path is strictly within the sandbox directory
+	rel, err := filepath.Rel(sandbox.Path, cleanPath)
+	if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
 		http.Error(w, "Path traversal attempt detected", http.StatusBadRequest)
 		return
 	}
 
-	http.ServeFile(w, r, filePath)
+	http.ServeFile(w, r, cleanPath)
 }
 
 func main() {

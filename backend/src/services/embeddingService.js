@@ -128,15 +128,16 @@ class EmbeddingService {
    * @returns {number[]}
    */
   _hashEmbed(text) {
-    // Ensure text is a string to prevent loop bound injection, and cap length
-    const safeText = String(text).substring(0, 100000);
+    // Ensure text is a string to prevent loop bound injection
+    const strText = typeof text === 'string' ? text : String(text);
 
     const dims = this._dimensions;
     const vec = new Float64Array(dims);
     let hash = 0;
-    const len = safeText.length;
+    // Cap the length using Math.min to explicitly bound the loop for CodeQL
+    const len = Math.min(strText.length, 100000);
     for (let i = 0; i < len; i++) {
-      hash = ((hash << 5) - hash + safeText.charCodeAt(i)) | 0;
+      hash = ((hash << 5) - hash + strText.charCodeAt(i)) | 0;
     }
     // Use hash as seed for deterministic pseudo-random vector
     let seed = Math.abs(hash);

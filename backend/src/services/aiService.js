@@ -1023,9 +1023,17 @@ class AIService {
     const moduleText = `${moduleMeta.id || ''} ${moduleMeta.name || ''}`.toLowerCase();
 
     if (moduleText.includes('port')) {
-      const portsMatch = text.match(/\bports?(?:\s+(?:are|is))?\s*[:=]?\s*([0-9]+(?:[\s,\-]+[0-9]+)*)\b/i);
-      if (portsMatch && portsMatch[1]) {
-        params.ports = portsMatch[1].replace(/\s+/g, '').replace(/,+$/, '');
+      // Two-step approach to avoid ReDoS from nested quantifiers on uncontrolled input:
+      // 1. Find the offset where port numbers begin (simple, non-backtracking anchor).
+      // 2. Linearly collect consecutive port numbers from that offset.
+      const portsAnchor = text.match(/\bports?\s*(?:are|is)?\s*[:=]?\s*(\d)/i);
+      if (portsAnchor) {
+        const startIdx = portsAnchor.index + portsAnchor[0].length - 1;
+        const candidate = text.slice(startIdx, startIdx + 256); // bound input length
+        const portNums = [...candidate.matchAll(/\d+/g)]
+          .map(m => m[0])
+          .join(',');
+        if (portNums) params.ports = portNums;
       }
 
       const timingMatch = text.match(/\bT([0-5])\b/i) || text.match(/\btiming\s*(?:(?:is|=|:)\s*)?([0-5])\b/i);

@@ -755,7 +755,7 @@ const AIChat = (() => {
         `;
       }).join('');
     } catch (err) {
-      listEl.innerHTML = `<p style="padding:12px;font-family:var(--font-mono);font-size:0.72rem;color:var(--red);">Search failed: ${err.message}</p>`;
+      listEl.innerHTML = `<p style="padding:12px;font-family:var(--font-mono);font-size:0.72rem;color:var(--red);">Search failed: ${_escHtml(String(err && err.message ? err.message : err))}</p>`;
     }
   }
 

@@ -4,7 +4,9 @@
   "description": "Sarvekshanam – Multi-system Security Operations Platform (Backend)",
   "main": "src/server.js",
   "scripts": {
+    "prestart": "node scripts/initDb.js",
     "start": "node src/server.js",
+    "predev": "node scripts/initDb.js",
     "dev": "nodemon --watch src --watch .env src/server.js",
     "test": "jest --forceExit --runInBand",
     "test:coverage": "jest --coverage --forceExit --runInBand",

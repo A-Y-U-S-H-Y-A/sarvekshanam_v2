@@ -113,9 +113,6 @@ npm install
 # Configure environment
 cp .env.example .env
 
-# Initialize the database
-npx sequelize-cli db:migrate
-node -e "require('./src/db/database').getDb().sequelize.sync({ alter: true })"
 ````
 
 Edit `.env` and configure:

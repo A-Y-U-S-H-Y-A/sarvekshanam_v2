@@ -3,6 +3,11 @@
 const fs = require('fs');
 const path = require('path');
 const Sequelize = require('sequelize');
+
+// Suppress moment.js deprecation warning caused by Sequelize trying to parse SQLite's 'CURRENT_TIMESTAMP'
+const moment = require('moment');
+moment.suppressDeprecationWarnings = true;
+
 const process = require('process');
 const basename = path.basename(__filename);
 const env = process.env.NODE_ENV || 'development';
@@ -39,5 +44,22 @@ Object.keys(db).forEach(modelName => {
 
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
+
+// Fix Sequelize SQLite sync({ alter: true }) bug where it constantly tries to alter tables
+// because it perceives 'CURRENT_TIMESTAMP' as a mismatch with model definitions.
+const queryInterface = sequelize.getQueryInterface();
+const originalDescribeTable = queryInterface.describeTable;
+queryInterface.describeTable = async function(tableName, options) {
+  const schema = await originalDescribeTable.call(this, tableName, options);
+  for (const columnName in schema) {
+    if (
+      (columnName === 'created_at' || columnName === 'updated_at') &&
+      schema[columnName].defaultValue === 'CURRENT_TIMESTAMP'
+    ) {
+      schema[columnName].defaultValue = undefined;
+    }
+  }
+  return schema;
+};
 
 module.exports = db;

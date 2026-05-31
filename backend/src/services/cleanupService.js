@@ -58,7 +58,8 @@ class CleanupService {
 
     for (const modelName of modelsToClean) {
       const Model = db[modelName];
-      if (!Model) continue;
+      // Only clean up models that have paranoid: true (and thus have a deleted_at column)
+      if (!Model || !Model.options || !Model.options.paranoid) continue;
 
       try {
         const result = await Model.destroy({

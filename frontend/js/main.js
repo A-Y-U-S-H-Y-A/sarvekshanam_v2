@@ -120,7 +120,7 @@ const App = (() => {
       document.getElementById('setting-proxy-mode').value = data.mode || 'none';
       document.getElementById('setting-proxy-target').value = data.target || '';
       onProxyModeChange();
-    } catch (_) {
+    } catch (_settingsErr) {
       showToast('Failed to load settings', 'error');
     }
   }

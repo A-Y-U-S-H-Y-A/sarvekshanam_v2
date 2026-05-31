@@ -49,7 +49,7 @@ const WsClient = (() => {
 
     ws.addEventListener('message', (ev) => {
       let msg;
-      try { msg = JSON.parse(ev.data); } catch (_) { return; }
+      try { msg = JSON.parse(ev.data); } catch (_parseErr) { return; }
 
       if (msg.type === 'AUTH_OK')    { _authSent = true; _setStatus('connected'); }
       if (msg.type === 'AUTH_ERROR') { _setStatus('disconnected'); }

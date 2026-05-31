@@ -68,7 +68,7 @@ class WsHandler {
 
   _onMessage(ws, raw) {
     let msg;
-    try { msg = JSON.parse(raw); } catch (_) {
+    try { msg = JSON.parse(raw); } catch (_parseErr) {
       return this._send(ws, { type: 'ERROR', message: 'Invalid JSON' });
     }
 
@@ -90,7 +90,7 @@ class WsHandler {
 
       if (payload.role === 'admin') this._admins.add(ws);
       this._send(ws, { type: 'AUTH_OK', user: client.user });
-    } catch (_) {
+    } catch (_jwtErr) {
       this._send(ws, { type: 'AUTH_ERROR', message: 'Invalid or expired token' });
     }
   }

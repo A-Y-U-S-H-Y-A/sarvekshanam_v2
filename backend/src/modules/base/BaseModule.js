@@ -28,7 +28,7 @@ class BaseModule {
    * @param {Object} options – Runtime options { proxyConfig, mockMode, timeout }
    * @returns {Promise<{status: 'success'|'error'|'partial', output: string, raw: any, timestamp: string}>}
    */
-  async run(params, options = {}) { // eslint-disable-line no-unused-vars
+  async run(_params, _options = {}) {
     throw new Error(`${this.constructor.name} must implement run()`);
   }
 

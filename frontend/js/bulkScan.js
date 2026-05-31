@@ -51,7 +51,7 @@ const BulkScan = (() => {
         </div>
       `).join('');
       updateCountBadge();
-    } catch (_) {
+    } catch (_loadErr) {
       container.innerHTML = '<p style="padding:12px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Failed to load modules.</p>';
     }
   }
@@ -158,7 +158,7 @@ const BulkScan = (() => {
       const data = await API.scans.list({ limit: 50 });
       const bulk = (data.sessions || []).filter(s => s.mode === 'bulk');
       renderProgress(bulk);
-    } catch (_) {}
+    } catch (refreshErr) { console.warn('Failed to refresh bulk scan list:', refreshErr.message); }
   }
 
   // ── Progress UI ───────────────────────────────────────────────────────────

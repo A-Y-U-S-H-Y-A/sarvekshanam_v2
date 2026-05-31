@@ -6,7 +6,7 @@ const Runners = {
     try {
       const [rData, gData] = await Promise.all([
         API.runners.list(),
-        API.groups.list().catch(() => []) // Catch if endpoint not fully ready
+        API.groups.list().catch((_groupsErr) => []) // Groups endpoint may not be ready
       ]);
       this.list = rData;
       this.groups = gData;

@@ -24,8 +24,8 @@ class JwksManager {
         this._kid           = data.kid;
         this._jwk           = data.jwk;
         return;
-      } catch (e) {
-        console.warn('Failed to load .jwks.json, generating new keys...');
+      } catch (loadErr) {
+        console.warn('Failed to load .jwks.json, generating new keys:', loadErr.message);
       }
     }
 

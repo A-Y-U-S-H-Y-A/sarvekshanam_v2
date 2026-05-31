@@ -36,7 +36,7 @@ func RemoveActiveExecution(sandboxID string) {
 func saveState() {
 	data, err := json.Marshal(activeIDs)
 	if err == nil {
-		os.WriteFile(stateFile, data, 0644)
+		if err := os.WriteFile(stateFile, data, 0644); err != nil { log.Printf("[State] Failed to persist state: %v", err) }
 	}
 }
 

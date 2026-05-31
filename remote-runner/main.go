@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -121,7 +120,7 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 func loadModulesFromDisk() ([]ModuleConfig, error) {
 	modules := []ModuleConfig{}
-	entries, err := ioutil.ReadDir("modules")
+	entries, err := os.ReadDir("modules")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return modules, nil
@@ -135,11 +134,11 @@ func loadModulesFromDisk() ([]ModuleConfig, error) {
 		}
 
 		jsonPath := filepath.Join("modules", entry.Name(), "module.json")
-		data, err := ioutil.ReadFile(jsonPath)
+		data, err := os.ReadFile(jsonPath)
 		if err != nil {
 			// Try manifest.json as well
 			jsonPath = filepath.Join("modules", entry.Name(), "manifest.json")
-			data, err = ioutil.ReadFile(jsonPath)
+			data, err = os.ReadFile(jsonPath)
 			if err != nil {
 				continue
 			}
@@ -197,7 +196,7 @@ func modulesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(modules)
+	if err := json.NewEncoder(w).Encode(modules); err != nil { log.Printf("[Modules] Failed to encode response: %v", err) }
 }
 
 func schemaHandler(w http.ResponseWriter, r *http.Request) {
@@ -246,7 +245,7 @@ func schemaHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(schemas)
+	if err := json.NewEncoder(w).Encode(schemas); err != nil { log.Printf("[Modules] Failed to encode response: %v", err) }
 }
 
 func scrubArgs(args []string) error {
@@ -435,20 +434,20 @@ func applyOSProxy(proxy string) func() {
 	}
 
 	if runtime.GOOS == "windows" {
-		exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f").Run()
-		exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyServer", "/t", "REG_SZ", "/d", proxy, "/f").Run()
+		if err := exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f").Run(); err != nil { log.Printf("[Proxy] %v", err) }
+		if err := exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyServer", "/t", "REG_SZ", "/d", proxy, "/f").Run(); err != nil { log.Printf("[Proxy] %v", err) }
 		
 		cleanup = func() {
-			exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f").Run()
+			if err := exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f").Run(); err != nil { log.Printf("[Proxy] %v", err) }
 			proxyMutex.Unlock()
 		}
 	} else if runtime.GOOS == "darwin" {
-		exec.Command("networksetup", "-setwebproxy", "Wi-Fi", proxy, "8080").Run()
-		exec.Command("networksetup", "-setsecurewebproxy", "Wi-Fi", proxy, "8080").Run()
+		if err := exec.Command("networksetup", "-setwebproxy", "Wi-Fi", proxy, "8080").Run(); err != nil { log.Printf("[Proxy] %v", err) }
+		if err := exec.Command("networksetup", "-setsecurewebproxy", "Wi-Fi", proxy, "8080").Run(); err != nil { log.Printf("[Proxy] %v", err) }
 		
 		cleanup = func() {
-			exec.Command("networksetup", "-setwebproxystate", "Wi-Fi", "off").Run()
-			exec.Command("networksetup", "-setsecurewebproxystate", "Wi-Fi", "off").Run()
+			if err := exec.Command("networksetup", "-setwebproxystate", "Wi-Fi", "off").Run(); err != nil { log.Printf("[Proxy] %v", err) }
+			if err := exec.Command("networksetup", "-setsecurewebproxystate", "Wi-Fi", "off").Run(); err != nil { log.Printf("[Proxy] %v", err) }
 			proxyMutex.Unlock()
 		}
 	}

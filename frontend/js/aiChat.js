@@ -73,7 +73,7 @@ const AIChat = (() => {
       }
       
       onProviderChange();
-    } catch (_) {}
+    } catch (providerErr) { console.warn('Failed to load AI providers:', providerErr.message); }
   }
 
   function onProviderChange() {
@@ -445,7 +445,7 @@ const AIChat = (() => {
               _availableChats.push({ id: info.id, title: info.title, messages: [..._messages] });
               _renderChatHistory();
             }
-          } catch (e) {}
+          } catch (_parseErr) { /* SSE control message parse failure — non-critical */ }
           return;
         }
 
@@ -456,7 +456,7 @@ const AIChat = (() => {
               interceptedToolCalls = JSON.parse(match[1]);
               fullContent += chunk.split('__TOOL_CONFIRMATION__:')[0];
             }
-          } catch (e) {}
+          } catch (_parseErr) { /* SSE control message parse failure — non-critical */ }
           return;
         }
 
@@ -717,7 +717,7 @@ const AIChat = (() => {
         const count = stats.totalCount ?? stats.documents ?? stats.chunks ?? 0;
         countEl.textContent = `${count} documents indexed`;
       }
-    } catch (_) {}
+    } catch (_statsErr) { /* RAG stats are non-critical UI decoration */ }
   }
 
   async function ragSearch() {

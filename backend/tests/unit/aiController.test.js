@@ -67,7 +67,6 @@ describe('aiController Unit Tests', () => {
 
       async function* badStream() {
         throw new Error('stream exploded');
-        yield 'never';  // eslint-disable-line no-unreachable
       }
       mockAI.stream = jest.fn().mockReturnValue(badStream());
 

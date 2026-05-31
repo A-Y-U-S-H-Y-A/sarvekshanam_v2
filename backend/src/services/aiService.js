@@ -155,7 +155,7 @@ class AIService {
             try {
               const parsed = JSON.parse(idToFetch);
               if (parsed && typeof parsed === 'object') idToFetch = parsed.moduleId || parsed.id || parsed.input || idToFetch;
-            } catch (_) {}
+            } catch (_parseErr) {}
 
             // Exact match first
             let mod = getRegistry().getById(idToFetch);
@@ -268,7 +268,7 @@ class AIService {
             try {
               const parsed = JSON.parse(idToFetch);
               if (parsed && typeof parsed === 'object') idToFetch = parsed.sessionId || parsed.id || parsed.input || idToFetch;
-            } catch (_) {}
+            } catch (_parseErr) {}
 
             const svc = getScanSessionService();
             const session = await svc.get(idToFetch);
@@ -312,7 +312,7 @@ class AIService {
           try {
             const parsed = JSON.parse(q);
             if (parsed && typeof parsed === 'object') q = parsed.query || parsed.q || parsed.input || q;
-          } catch (_) {}
+          } catch (_parseErr) {}
 
           const { getVectorService } = require('./vectorService');
           const filter = {};
@@ -325,7 +325,7 @@ class AIService {
               } else {
                 filter.docIds = ['__none__'];
               }
-            } catch (e) {}
+            } catch (_ctxErr) { console.warn('Failed to load appointment context for RAG filtering:', _ctxErr.message); }
           }
           const results = await getVectorService().search(q, 5, filter);
           if (!results || results.length === 0) return JSON.stringify({ message: 'No relevant information found.' });
@@ -510,7 +510,7 @@ class AIService {
         if (accumulated === null) {
           accumulated = chunk;
         } else {
-          try { accumulated = accumulated.concat(chunk); } catch (_) { }
+          try { accumulated = accumulated.concat(chunk); } catch (_concatErr) { }
         }
 
         // Sequentially parse tool_call_chunks to bypass Langchain's buggy index-based concat
@@ -593,7 +593,7 @@ class AIService {
       let match;
       while ((match = funcRegex.exec(fullText)) !== null) {
         let parsedArgs = {};
-        try { parsedArgs = JSON.parse(match[2]); } catch (_) {}
+        try { parsedArgs = JSON.parse(match[2]); } catch (_parseErr) {}
         toolCalls.push({
           id: `call_${Date.now()}_raw_${toolCalls.length}`,
           name: match[1],
@@ -612,7 +612,7 @@ class AIService {
 
       const toolSignatures = toolCalls.map(tc => {
         let argsKey = '';
-        try { argsKey = JSON.stringify(tc.args || {}); } catch (_) { argsKey = String(tc.args || ''); }
+        try { argsKey = JSON.stringify(tc.args || {}); } catch (_stringifyErr) { argsKey = String(tc.args || ''); }
         return `${tc.name}:${argsKey}`;
       });
       const repeatedToolBatch = toolSignatures.length > 0 && toolSignatures.every(sig => seenToolSignatures.has(sig));
@@ -800,7 +800,7 @@ class AIService {
         if (key === 'raw') return undefined;
         return value;
       }));
-    } catch (_) {
+    } catch (_cloneErr) {
       return results;
     }
   }
@@ -911,7 +911,7 @@ class AIService {
       try {
         const { getRegistry } = require('../modules/registry');
         modules = getRegistry().getAll();
-      } catch (_) {}
+      } catch (_registryErr) { console.warn('Failed to load module registry for tool inference:', _registryErr.message); }
 
       const moduleMeta = modules.length ? this._matchModuleFromPrompt(text, modules) : null;
       if (moduleMeta?.id) {
@@ -943,7 +943,8 @@ class AIService {
     try {
       const { getRegistry } = require('../modules/registry');
       modules = getRegistry().getAll();
-    } catch (_) {
+    } catch (_registryErr) {
+      console.warn('Failed to load module registry for tool inference:', _registryErr.message);
       return null;
     }
     if (!modules.length) return null;
@@ -1136,12 +1137,12 @@ class AIService {
 
   _parseModuleOutput(output) {
     if (typeof output !== 'string' || !output.trim()) return null;
-    try { return JSON.parse(output); } catch (_) { return null; }
+    try { return JSON.parse(output); } catch (_parseErr) { return null; }
   }
 
   _formatApprovedToolSummary(name, resultStr) {
     let result = null;
-    try { result = JSON.parse(resultStr); } catch (_) {}
+    try { result = JSON.parse(resultStr); } catch (_parseErr) {}
 
     if (result?.error) {
       return `${this._toolDisplayName(name)} failed: ${result.error}`;
@@ -1213,11 +1214,11 @@ class AIService {
       if (pkg.dependencies && pkg.dependencies[pkgName]) return true;
       if (pkg.devDependencies && pkg.devDependencies[pkgName]) return true;
       return false;
-    } catch (_) {
+    } catch (_fsErr) {
       try {
         require.resolve(pkgName);
         return true;
-      } catch (__) {
+      } catch (_resolveErr) {
         return false;
       }
     }
@@ -1314,13 +1315,13 @@ class AIService {
             try {
               const parsed = JSON.parse(data);
               resolve((parsed.models || []).map(m => m.name));
-            } catch (_) { resolve([]); }
+            } catch (_parseErr) { console.warn('Failed to parse Ollama model list:', _parseErr.message); resolve([]); }
           });
         });
         req.on('error', () => resolve([]));
         req.on('timeout', () => { req.destroy(); resolve([]); });
       });
-    } catch (_) {
+    } catch (_probeErr) {
       return [];
     }
   }

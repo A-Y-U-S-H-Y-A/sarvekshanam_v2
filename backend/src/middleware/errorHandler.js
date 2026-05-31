@@ -4,8 +4,7 @@
  * Global Express error handler.
  * Normalises errors into a consistent JSON envelope.
  */
-// eslint-disable-next-line no-unused-vars
-function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res, _next) {
   const status  = err.status || err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
 

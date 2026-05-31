@@ -33,7 +33,7 @@ exports.createScan = async (req, res, next) => {
 
     // Run async (don't await — return sessionId immediately)
     const proxyService = getProxyService();
-    setImmediate(() => svc.run(session.id, { proxyEnv: proxyService.getExecEnv() }).catch(console.error));
+    setImmediate(() => svc.run(session.id, { proxyEnv: proxyService.getExecEnv() }).catch(err => console.error('[ScanController] Background scan execution failed:', err.message)));
 
     res.status(202).json({ success: true, data: { session } });
   } catch (err) {
@@ -74,7 +74,7 @@ exports.bulkScan = async (req, res, next) => {
     const proxyService = getProxyService();
     setImmediate(() => {
       for (const s of sessions) {
-        svc.run(s.id, { proxyEnv: proxyService.getExecEnv() }).catch(console.error);
+        svc.run(s.id, { proxyEnv: proxyService.getExecEnv() }).catch(err => console.error('[ScanController] Background scan execution failed:', err.message));
       }
     });
 
@@ -155,7 +155,7 @@ exports.retryScan = async (req, res, next) => {
     session = await svc.update(session.id, patch);
 
     const proxyService = getProxyService();
-    setImmediate(() => svc.run(session.id, { proxyEnv: proxyService.getExecEnv() }).catch(console.error));
+    setImmediate(() => svc.run(session.id, { proxyEnv: proxyService.getExecEnv() }).catch(err => console.error('[ScanController] Background scan execution failed:', err.message)));
     
     res.status(202).json({ success: true, data: { session } });
   } catch (err) {
@@ -181,7 +181,7 @@ exports.approveScan = async (req, res, next) => {
     session = await svc.update(session.id, { status: 'pending' });
 
     const proxyService = getProxyService();
-    setImmediate(() => svc.run(session.id, { proxyEnv: proxyService.getExecEnv() }).catch(console.error));
+    setImmediate(() => svc.run(session.id, { proxyEnv: proxyService.getExecEnv() }).catch(err => console.error('[ScanController] Background scan execution failed:', err.message)));
 
     res.status(202).json({ success: true, data: { session } });
   } catch (err) {

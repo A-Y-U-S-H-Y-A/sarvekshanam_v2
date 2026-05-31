@@ -35,7 +35,7 @@ const Auth = (() => {
         const ssoSection = document.getElementById('sso-section');
         if (ssoSection) ssoSection.classList.remove('hidden');
       }
-    } catch (_) {}
+    } catch (oidcErr) { console.warn('Failed to check OIDC status:', oidcErr.message); }
 
     const token = getToken();
     if (!token) {
@@ -48,7 +48,7 @@ const Auth = (() => {
       _user = data.user;
       hideOverlay();
       return _user;
-    } catch (_) {
+    } catch (_authErr) {
       localStorage.removeItem('sarv_token');
       showOverlay();
       return null;

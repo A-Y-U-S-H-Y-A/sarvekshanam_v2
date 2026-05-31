@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"net/http"
@@ -91,7 +90,7 @@ func InitJWKS() error {
 
 // loadConfig reads jwks_urls.json.
 func (v *JWKSValidator) loadConfig() error {
-	data, err := ioutil.ReadFile(v.configPath)
+	data, err := os.ReadFile(v.configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			log.Printf("[JWKS] No %s found — JWKS validation disabled", v.configPath)

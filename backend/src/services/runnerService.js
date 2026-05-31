@@ -102,7 +102,8 @@ class RunnerService {
       const jwks = getJwksManager();
       const token = jwks.signSlaveToken({ runnerId: runner.id, action: 'execute' });
       headers['Authorization'] = `Bearer ${token}`;
-    } catch (_) {
+    } catch (_jwksErr) {
+      console.warn('JWKS signing failed, slave will operate in dev mode:', _jwksErr.message);
       // JWKS signing failed — slave will operate in dev mode (unauthenticated)
     }
     return headers;
@@ -121,7 +122,8 @@ class RunnerService {
         try {
           body.encrypted_args = cryptoSvc.encryptForSlave(runnerId, JSON.stringify(args));
           delete body.args;
-        } catch (_) {
+        } catch (_encryptErr) {
+          console.warn('Failed to encrypt args for slave, sending plaintext:', _encryptErr.message);
           // Encryption failed — send plaintext
         }
       }
@@ -272,7 +274,8 @@ class RunnerService {
       const sorted = parsed.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       const normalized = JSON.stringify(sorted);
       return crypto.createHash('sha256').update(normalized).digest('hex');
-    } catch {
+    } catch (hashErr) {
+      console.warn('Failed to compute manifest hash:', hashErr.message);
       return crypto.createHash('sha256').update('[]').digest('hex');
     }
   }
@@ -316,7 +319,7 @@ class RunnerService {
           const pemKey = await pkResp.text();
           getCryptoService().cachePublicKey(id, pemKey.trim());
         }
-      } catch (_) {
+      } catch (_pubkeyErr) {
         // Slave doesn't support /pubkey yet — fine
       }
     }
@@ -430,7 +433,7 @@ class RunnerService {
       try {
         body.encrypted_args = cryptoSvc.encryptForSlave(runnerId, JSON.stringify(args));
         delete body.args;
-      } catch (_) {}
+      } catch (_encryptErr) { console.warn('Failed to encrypt bulk args for slave, sending plaintext:', _encryptErr.message); }
     }
 
     const response = await fetch(`${runner.url}/run-bulk`, {

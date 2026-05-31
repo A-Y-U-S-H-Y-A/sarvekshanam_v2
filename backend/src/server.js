@@ -62,7 +62,7 @@ function shutdown(signal) {
   console.log(`\n[Server] Received ${signal} — shutting down gracefully…`);
   getCleanupService().stop();
   httpServer.close(() => {
-    try { require('./db/database').closeDb(); } catch (_) {}
+    try { require('./db/database').closeDb(); } catch (shutdownErr) { console.warn('Failed to close database during shutdown:', shutdownErr.message); }
     process.exit(0);
   });
 }

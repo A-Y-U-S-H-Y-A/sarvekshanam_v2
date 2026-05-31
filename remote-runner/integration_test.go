@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -32,15 +32,17 @@ func setupTestApp() *http.ServeMux {
 
 func TestIntegration(t *testing.T) {
 	if _, err := os.Stat("modules"); err == nil {
-		os.Rename("modules", "modules_backup")
-		defer os.Rename("modules_backup", "modules")
+		if err := os.Rename("modules", "modules_backup"); err != nil { t.Fatalf("Rename failed: %v", err) }
+		defer func() {
+			if err := os.Rename("modules_backup", "modules"); err != nil { t.Logf("Restore failed: %v", err) }
+		}()
 	}
 	
-	os.Mkdir("modules", 0755)
+	if err := os.Mkdir("modules", 0755); err != nil { t.Fatalf("Mkdir failed: %v", err) }
 	defer os.RemoveAll("modules")
 
 	mod1 := filepath.Join("modules", "test-mod")
-	os.Mkdir(mod1, 0755)
+	if err := os.Mkdir(mod1, 0755); err != nil { t.Fatalf("Mkdir failed: %v", err) }
 	validJSON := `{ 
 		"id": "test-mod", 
 		"name": "Test Mod", 
@@ -50,8 +52,8 @@ func TestIntegration(t *testing.T) {
 			{"name": "target", "type": "string", "required": true, "description": "Target URL"}
 		]
 	}`
-	os.WriteFile(filepath.Join(mod1, "module.json"), []byte(validJSON), 0644)
-	os.WriteFile(filepath.Join(mod1, "run.js"), []byte("const fs = require('fs');\nconsole.log('Target: ' + process.argv[2]);\nfs.writeFileSync('out.txt', 'data');\n"), 0755)
+	if err := os.WriteFile(filepath.Join(mod1, "module.json"), []byte(validJSON), 0644); err != nil { t.Fatalf("WriteFile failed: %v", err) }
+	if err := os.WriteFile(filepath.Join(mod1, "run.js"), []byte("const fs = require('fs');\nconsole.log('Target: ' + process.argv[2]);\nfs.writeFileSync('out.txt', 'data');\n"), 0755); err != nil { t.Fatalf("WriteFile failed: %v", err) }
 
 	refreshModuleCache()
 
@@ -64,7 +66,8 @@ func TestIntegration(t *testing.T) {
 	if err != nil { t.Fatal(err) }
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 { t.Errorf("Expected 200 for /ping, got %d", resp.StatusCode) }
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil { t.Fatalf("Failed to read response body: %v", err) }
 	if string(body) != "pong" { t.Errorf("Expected 'pong', got %s", string(body)) }
 
 	// 2. GET /modules
@@ -73,7 +76,7 @@ func TestIntegration(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 { t.Errorf("Expected 200 for /modules, got %d", resp.StatusCode) }
 	var mods []ModuleConfig
-	json.NewDecoder(resp.Body).Decode(&mods)
+	if err := json.NewDecoder(resp.Body).Decode(&mods); err != nil { t.Fatalf("Failed to decode: %v", err) }
 	if len(mods) != 1 || mods[0].ID != "test-mod" { t.Errorf("Expected 1 module, got %v", mods) }
 
 	// 3. POST /run valid module
@@ -82,7 +85,8 @@ func TestIntegration(t *testing.T) {
 	if err != nil { t.Fatal(err) }
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 { t.Errorf("Expected 200 for /run, got %d", resp.StatusCode) }
-	body, _ = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
+	if err != nil { t.Fatalf("Failed to read response body: %v", err) }
 	if !strings.Contains(string(body), "hello-target") { t.Errorf("Expected output to contain 'hello-target'") }
 	
 	// Extract sandbox ID for file test
@@ -91,7 +95,7 @@ func TestIntegration(t *testing.T) {
 	for _, line := range lines {
 		if strings.HasPrefix(line, "data: ") {
 			var msg SSEMessage
-			json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &msg)
+			if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &msg); err != nil { t.Fatalf("Unmarshal failed: %v", err) }
 			if msg.Type == "done" && msg.SandboxID != "" {
 				sandboxID = msg.SandboxID
 			}
@@ -111,7 +115,8 @@ func TestIntegration(t *testing.T) {
 	if err != nil { t.Fatal(err) }
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 { t.Errorf("Expected 200 for /run-bulk, got %d", resp.StatusCode) }
-	body, _ = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
+	if err != nil { t.Fatalf("Failed to read response body: %v", err) }
 	if !strings.Contains(string(body), "Target: t1") || !strings.Contains(string(body), "Target: t2") {
 		t.Errorf("Expected bulk output to contain both targets, got %s", string(body))
 	}
@@ -122,7 +127,7 @@ func TestIntegration(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 { t.Errorf("Expected 200 for /modules/schema, got %d", resp.StatusCode) }
 	var schemas []map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&schemas)
+	if err := json.NewDecoder(resp.Body).Decode(&schemas); err != nil { t.Fatalf("Failed to decode: %v", err) }
 	if len(schemas) != 1 { t.Errorf("Expected 1 schema, got %d", len(schemas)) }
 
 	// 7. GET /files/:id/:name
@@ -131,7 +136,8 @@ func TestIntegration(t *testing.T) {
 		if err != nil { t.Fatal(err) }
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 { t.Errorf("Expected 200 for file download, got %d", resp.StatusCode) }
-		fileBody, _ := ioutil.ReadAll(resp.Body)
+		fileBody, err := io.ReadAll(resp.Body)
+		if err != nil { t.Fatalf("Failed to read response body: %v", err) }
 		if strings.TrimSpace(string(fileBody)) != "data" { t.Errorf("Expected file body 'data', got '%s'", string(fileBody)) }
 	} else {
 		t.Errorf("Sandbox ID not found in /run response")
@@ -139,9 +145,9 @@ func TestIntegration(t *testing.T) {
 
 	// 8. Concurrent stress: 10 parallel /run requests with max-concurrent=3 -> verify 3 execute, 7 get 429
 	slowMod := filepath.Join("modules", "slow-mod")
-	os.Mkdir(slowMod, 0755)
-	os.WriteFile(filepath.Join(slowMod, "module.json"), []byte(`{ "id": "slow-mod", "name": "Slow", "language": "node", "executable": "run.js" }`), 0644)
-	os.WriteFile(filepath.Join(slowMod, "run.js"), []byte("setTimeout(() => console.log('done'), 1000);\n"), 0755)
+	if err := os.Mkdir(slowMod, 0755); err != nil { t.Fatalf("Mkdir failed: %v", err) }
+	if err := os.WriteFile(filepath.Join(slowMod, "module.json"), []byte(`{ "id": "slow-mod", "name": "Slow", "language": "node", "executable": "run.js" }`), 0644); err != nil { t.Fatalf("WriteFile failed: %v", err) }
+	if err := os.WriteFile(filepath.Join(slowMod, "run.js"), []byte("setTimeout(() => console.log('done'), 1000);\n"), 0755); err != nil { t.Fatalf("WriteFile failed: %v", err) }
 	refreshModuleCache()
 
 	var wg sync.WaitGroup

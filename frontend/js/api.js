@@ -132,7 +132,7 @@ const API = (() => {
                 const obj = JSON.parse(raw);
                 if (obj.content) onChunk(obj.content);
                 if (obj.error)   onError(new Error(obj.error));
-              } catch (_) {}
+              } catch (_parseErr) { /* Non-JSON SSE line — expected for partial/malformed chunks */ }
             }
           }
           _finish();

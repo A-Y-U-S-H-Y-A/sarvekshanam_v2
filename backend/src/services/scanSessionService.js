@@ -172,7 +172,7 @@ class ScanSessionService extends EventEmitter {
 
   _tryParse(val, fallback) {
     if (val === null || val === undefined) return fallback;
-    try { return typeof val === 'string' ? JSON.parse(val) : val; } catch (_) { return fallback; }
+    try { return typeof val === 'string' ? JSON.parse(val) : val; } catch (_parseErr) { return fallback; }
   }
 }
 

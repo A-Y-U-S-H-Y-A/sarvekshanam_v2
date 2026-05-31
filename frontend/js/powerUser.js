@@ -330,7 +330,7 @@ const PowerUser = (() => {
         </div>
       `;
       }).join('');
-    } catch (_) {
+    } catch (_loadErr) {
       listEl.innerHTML = '<p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Failed to load sessions.</p>';
     }
   }

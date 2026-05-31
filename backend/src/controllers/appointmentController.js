@@ -4,6 +4,19 @@ const { getAppointmentService } = require('../services/appointmentService');
 
 function svc() { return getAppointmentService(); }
 
+async function checkAccess(req, res, id) {
+  const appointment = await svc().get(id);
+  if (!appointment) {
+    res.status(404).json({ success: false, error: { message: 'Appointment not found' } });
+    return null;
+  }
+  if (String(appointment.userId) !== String(req.user.id) && req.user.role !== 'admin') {
+    res.status(403).json({ success: false, error: { message: 'Forbidden' } });
+    return null;
+  }
+  return appointment;
+}
+
 // POST /api/appointments
 exports.create = async (req, res, next) => {
   try {
@@ -32,10 +45,8 @@ exports.list = async (req, res, next) => {
 // GET /api/appointments/:id
 exports.get = async (req, res, next) => {
   try {
-    const appointment = await svc().get(req.params.id);
-    if (!appointment) {
-      return res.status(404).json({ success: false, error: { message: 'Appointment not found' } });
-    }
+    const appointment = await checkAccess(req, res, req.params.id);
+    if (!appointment) return;
     return res.json({ success: true, data: { appointment } });
   } catch (err) { next(err); }
 };
@@ -43,10 +54,9 @@ exports.get = async (req, res, next) => {
 // PUT /api/appointments/:id
 exports.update = async (req, res, next) => {
   try {
+    const access = await checkAccess(req, res, req.params.id);
+    if (!access) return;
     const appointment = await svc().update(req.params.id, req.body);
-    if (!appointment) {
-      return res.status(404).json({ success: false, error: { message: 'Appointment not found' } });
-    }
     return res.json({ success: true, data: { appointment } });
   } catch (err) { next(err); }
 };
@@ -54,6 +64,8 @@ exports.update = async (req, res, next) => {
 // DELETE /api/appointments/:id
 exports.remove = async (req, res, next) => {
   try {
+    const access = await checkAccess(req, res, req.params.id);
+    if (!access) return;
     await svc().delete(req.params.id);
     return res.json({ success: true, data: { message: 'Appointment deleted' } });
   } catch (err) { next(err); }
@@ -62,6 +74,8 @@ exports.remove = async (req, res, next) => {
 // GET /api/appointments/:id/scans
 exports.getScans = async (req, res, next) => {
   try {
+    const access = await checkAccess(req, res, req.params.id);
+    if (!access) return;
     const scans = await svc().getScans(req.params.id);
     return res.json({ success: true, data: { scans } });
   } catch (err) { next(err); }
@@ -70,6 +84,8 @@ exports.getScans = async (req, res, next) => {
 // GET /api/appointments/:id/chats
 exports.getChats = async (req, res, next) => {
   try {
+    const access = await checkAccess(req, res, req.params.id);
+    if (!access) return;
     const chats = await svc().getChats(req.params.id);
     return res.json({ success: true, data: { chats } });
   } catch (err) { next(err); }
@@ -78,6 +94,8 @@ exports.getChats = async (req, res, next) => {
 // POST /api/appointments/:id/chats
 exports.createChat = async (req, res, next) => {
   try {
+    const access = await checkAccess(req, res, req.params.id);
+    if (!access) return;
     const { provider, model, messages, title } = req.body;
     const chat = await svc().linkChat(req.params.id, { provider, model, messages, title });
     return res.status(201).json({ success: true, data: { chat } });
@@ -87,6 +105,8 @@ exports.createChat = async (req, res, next) => {
 // PUT /api/appointments/:id/chats/:chatId/title
 exports.updateChatTitle = async (req, res, next) => {
   try {
+    const access = await checkAccess(req, res, req.params.id);
+    if (!access) return;
     const { title } = req.body;
     if (!title) return res.status(400).json({ success: false, error: { message: 'title is required' } });
     await svc().updateChatTitle(req.params.chatId, title);
@@ -97,10 +117,9 @@ exports.updateChatTitle = async (req, res, next) => {
 // GET /api/appointments/:id/context
 exports.getFullContext = async (req, res, next) => {
   try {
+    const access = await checkAccess(req, res, req.params.id);
+    if (!access) return;
     const context = await svc().getFullContext(req.params.id);
-    if (!context) {
-      return res.status(404).json({ success: false, error: { message: 'Appointment not found' } });
-    }
     return res.json({ success: true, data: { context } });
   } catch (err) { next(err); }
 };

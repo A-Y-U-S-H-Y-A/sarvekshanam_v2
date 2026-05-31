@@ -140,7 +140,9 @@ class ExecutionQueueService {
       const runOpts = { ...opts };
       if (session.runnerId) runOpts.runnerId = session.runnerId;
       if (session.proxyConfig) {
-        try { runOpts.proxyConfig = typeof session.proxyConfig === 'string' ? JSON.parse(session.proxyConfig) : session.proxyConfig; } catch(e) {}
+        try { runOpts.proxyConfig = typeof session.proxyConfig === 'string' ? JSON.parse(session.proxyConfig) : session.proxyConfig; } catch(e) {
+          console.error('Failed to parse proxy config:', e.message);
+        }
       }
 
       // ── 3.4: Broadcast POLL_AT so clients know when to refresh ──────────────
@@ -169,7 +171,9 @@ class ExecutionQueueService {
           // Note: we just touch the updatedAt to indicate alive, 
           // or we can save the partial results if we manage it here.
           // For now, we update status to running to extend timeout.
-          scanSessionService.update(session.id, { status: 'running' }).catch(() => {});
+          scanSessionService.update(session.id, { status: 'running' }).catch(err => {
+            console.error('Failed to update session status to running:', err.message);
+          });
         }
       };
 
@@ -246,7 +250,9 @@ class ExecutionQueueService {
         if (textToIngest.length > 20) {
           getVectorService().ingest(session.id, textToIngest).catch(console.error);
         }
-      } catch (err) {}
+      } catch (err) {
+        console.error('Failed to stringify or ingest scan results:', err.message);
+      }
       
     } catch (err) {
       console.error('_executeTask caught error:', err);
@@ -299,7 +305,9 @@ class ExecutionQueueService {
         if (task.session.runnerId === oldRunnerId) {
           task.session = { ...task.session, runnerId: newRunnerId };
           // Persist updated runnerId to DB
-          await scanSessionService.update(task.session.id, { runnerId: newRunnerId }).catch(() => {});
+          await scanSessionService.update(task.session.id, { runnerId: newRunnerId }).catch(err => {
+            console.error('Failed to persist runner migration:', err.message);
+          });
           count++;
         }
       }

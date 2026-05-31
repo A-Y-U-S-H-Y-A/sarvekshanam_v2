@@ -152,7 +152,7 @@ class ChromaDBBackend {
           }),
         }
       );
-      // Ignore 404s — document may not exist yet
+      // Gracefully ignore 404s — document may not exist yet
       if (!resp.ok && resp.status !== 404) {
         const text = await resp.text();
         console.warn(`[ChromaDBBackend] Delete warning: ${resp.status} ${text}`);

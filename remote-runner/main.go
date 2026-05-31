@@ -17,6 +17,9 @@ import (
 	"time"
 )
 
+type contextKey string
+const jwtPayloadKey contextKey = "jwt_payload"
+
 type ModuleParameter struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`
@@ -84,9 +87,9 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			jwksValidator.refreshKeys()
 		}
 
-		// If still no JWKS keys loaded, allow unauthenticated (dev mode)
+		// If still no JWKS keys loaded, fail closed (secure)
 		if !jwksValidator.HasKeys() {
-			next(w, r.WithContext(r.Context()))
+			http.Error(w, `{"error":"Unauthorized: Server not configured for authentication"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -113,7 +116,7 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		// Attach payload to request context so handlers can access it
 		ctx := r.Context()
-		ctx = context.WithValue(ctx, "jwt_payload", payload)
+		ctx = context.WithValue(ctx, jwtPayloadKey, payload)
 		next(w, r.WithContext(ctx))
 	}
 }
@@ -343,12 +346,21 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 		entryFile = targetMod.Entry
 	}
 
-	entryPath := filepath.Join(sandbox.Path, entryFile)
+	cleanEntryPath := filepath.Clean(filepath.Join(sandbox.Path, entryFile))
+	rel, err := filepath.Rel(sandbox.Path, cleanEntryPath)
+	if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
+		http.Error(w, "Path traversal attempt detected in module entry", http.StatusBadRequest)
+		return
+	}
+	entryPath := cleanEntryPath
 	
 	// Determine language executable
 	langExec := "python"
 	
-	flusher, _ := w.(http.Flusher)
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		log.Printf("[Warning] ResponseWriter does not implement http.Flusher")
+	}
 
 	if targetMod.Language != "" {
 		switch strings.ToLower(targetMod.Language) {
@@ -358,6 +370,11 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 			langExec = "node"
 		case "bash", "sh":
 			langExec = "bash"
+			cmdArgs := append([]string{"--", entryPath}, req.Args...)
+			cmd := exec.Command(langExec, cmdArgs...)
+			cmd.Dir = sandbox.Path
+			executeCmd(w, flusher, cmd, sandbox, targetMod, req.ProxyConfig)
+			return
 		case "go":
 			langExec = "go"
 			cmdArgs := append([]string{"run", entryPath}, req.Args...)
@@ -391,6 +408,36 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 	executeCmd(w, flusher, cmd, sandbox, targetMod, req.ProxyConfig)
 }
 
+func writeProxychainsConf(path, proxy string) {
+	scheme := "http"
+	if idx := strings.Index(proxy, "://"); idx != -1 {
+		scheme = proxy[:idx]
+		proxy = proxy[idx+3:]
+	}
+	auth := ""
+	if idx := strings.Index(proxy, "@"); idx != -1 {
+		auth = proxy[:idx]
+		proxy = proxy[idx+1:]
+		authParts := strings.SplitN(auth, ":", 2)
+		if len(authParts) == 2 {
+			auth = authParts[0] + " " + authParts[1]
+		} else {
+			auth = authParts[0] + " "
+		}
+	}
+	host := proxy
+	port := "80"
+	if idx := strings.LastIndex(proxy, ":"); idx != -1 {
+		host = proxy[:idx]
+		port = proxy[idx+1:]
+	}
+	if scheme == "socks5h" {
+		scheme = "socks5"
+	}
+	conf := fmt.Sprintf("strict_chain\nproxy_dns\nremote_dns_subnet 224\ntcp_read_time_out 15000\ntcp_connect_time_out 8000\n[ProxyList]\n%s %s %s %s\n", scheme, host, port, auth)
+	os.WriteFile(path, []byte(conf), 0644)
+}
+
 func applyProxy(cmd *exec.Cmd, proxy string) func() {
 	if proxy == "" {
 		proxy = globalProxy
@@ -410,12 +457,16 @@ func applyProxy(cmd *exec.Cmd, proxy string) func() {
 	// Tier 2: proxychains4 (OS-level routing)
 	// If proxychains4 is available, we prepend it to the command.
 	if pcPath, err := exec.LookPath("proxychains4"); err == nil {
-		newArgs := append([]string{pcPath, "-q"}, cmd.Args...)
+		confPath := filepath.Join(cmd.Dir, "proxychains.conf")
+		writeProxychainsConf(confPath, proxy)
+		newArgs := append([]string{pcPath, "-q", "-f", confPath}, cmd.Args...)
 		cmd.Path = pcPath
 		cmd.Args = newArgs
 		return func() {} // No global cleanup needed
 	} else if pcPath, err := exec.LookPath("proxychains"); err == nil {
-		newArgs := append([]string{pcPath, "-q"}, cmd.Args...)
+		confPath := filepath.Join(cmd.Dir, "proxychains.conf")
+		writeProxychainsConf(confPath, proxy)
+		newArgs := append([]string{pcPath, "-q", "-f", confPath}, cmd.Args...)
 		cmd.Path = pcPath
 		cmd.Args = newArgs
 		return func() {} // No global cleanup needed
@@ -570,7 +621,10 @@ func runBulkHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteSSEHeaders(w)
-	flusher, _ := w.(http.Flusher)
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		log.Printf("[Warning] ResponseWriter does not implement http.Flusher")
+	}
 
 	sandbox, err := CreateSandbox(moduleDir)
 	if err != nil {
@@ -585,7 +639,13 @@ func runBulkHandler(w http.ResponseWriter, r *http.Request) {
 		entryFile = targetMod.Entry
 	}
 
-	entryPath := filepath.Join(sandbox.Path, entryFile)
+	cleanEntryPath := filepath.Clean(filepath.Join(sandbox.Path, entryFile))
+	rel, err := filepath.Rel(sandbox.Path, cleanEntryPath)
+	if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
+		http.Error(w, "Path traversal attempt detected in module entry", http.StatusBadRequest)
+		return
+	}
+	entryPath := cleanEntryPath
 
 	for _, target := range req.Targets {
 		func(target string) {
@@ -601,6 +661,9 @@ func runBulkHandler(w http.ResponseWriter, r *http.Request) {
 					langExec = "node"
 				case "bash", "sh":
 					langExec = "bash"
+					cmdArgs := append([]string{"--", entryPath}, req.Args...)
+					cmdArgs = append(cmdArgs, target)
+					cmd = exec.Command(langExec, cmdArgs...)
 				case "go":
 					langExec = "go"
 					cmdArgs := append([]string{"run", entryPath}, req.Args...)
@@ -694,7 +757,7 @@ func runCmdHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload, ok := r.Context().Value("jwt_payload").(*JWTPayload)
+	payload, ok := r.Context().Value(jwtPayloadKey).(*JWTPayload)
 	if !ok || payload == nil {
 		// If JWKS is not configured, we might not have a payload, but for this secure endpoint we MUST enforce it.
 		if !jwksValidator.HasKeys() {
@@ -716,7 +779,10 @@ func runCmdHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	flusher, _ := w.(http.Flusher)
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		log.Printf("[Warning] ResponseWriter does not implement http.Flusher")
+	}
 	WriteSSEHeaders(w)
 
 	// codeql[go/command-injection] Intentional: Admin-only command execution endpoint, validated via JWT payload

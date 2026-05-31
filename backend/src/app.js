@@ -31,9 +31,9 @@ function createApp() {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!requestOrigin) return callback(null, true);
       
-      // If wildcard is in allowed origins, allow the request by reflecting the origin
+      // If wildcard is in allowed origins, allow the request with a literal '*'
       if (config.corsOrigins.includes('*')) {
-        return callback(null, true);
+        return callback(null, '*');
       }
       
       // Check if the specific origin is allowed

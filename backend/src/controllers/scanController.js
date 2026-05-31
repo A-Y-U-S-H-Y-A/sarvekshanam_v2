@@ -142,6 +142,22 @@ exports.retryScan = async (req, res, next) => {
       return res.status(400).json({ success: false, error: { message: `Cannot retry session in status: ${session.status}` } });
     }
 
+    const registry = require('../modules/registry').getRegistry();
+    let needsApproval = false;
+    for (const modId of (session.moduleIds || [])) {
+      const mod = registry.getById(modId);
+      if (mod && mod.meta && mod.meta.requires_strict_approval && req.user.role !== 'admin') {
+        needsApproval = true;
+      }
+    }
+
+    if (needsApproval) {
+      session = await svc.update(session.id, { status: 'pending_approval' });
+      const { getWsHub } = require('../websockets/wsHandler');
+      getWsHub().broadcast('ADMIN_APPROVAL_REQUIRED', { sessionId: session.id, moduleIds: session.moduleIds, user: req.user.username });
+      return res.status(202).json({ success: true, data: { session, status: 'pending_approval', message: 'Admin approval required' } });
+    }
+
     const { runnerId, proxyConfig } = req.body;
     let patch = { 
       status: 'pending', 

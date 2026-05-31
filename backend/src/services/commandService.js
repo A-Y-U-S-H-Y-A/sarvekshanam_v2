@@ -143,7 +143,7 @@ class CommandService extends EventEmitter {
     try {
       token = getJwksManager().signSlaveToken({ runnerId: runner.id, action: 'admin_approved_cmd' });
     } catch (e) {
-      // Ignored for fallback
+      console.warn('Warning: Could not sign slave token for runner command:', e.message);
     }
 
     return new Promise(async (resolve) => {
@@ -195,7 +195,9 @@ class CommandService extends EventEmitter {
                 } else if (event.type === 'done') {
                   finalExitCode = event.exit_code || 0;
                 }
-              } catch (e) {}
+              } catch (e) {
+                console.error('Error parsing SSE data chunk:', e.message);
+              }
             }
           }
         }

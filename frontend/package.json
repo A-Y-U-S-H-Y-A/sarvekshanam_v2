@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "serve -c serve.json",
     "test": "jest",
     "test:unit": "jest tests/unit",
     "test:e2e": "playwright test tests/e2e"

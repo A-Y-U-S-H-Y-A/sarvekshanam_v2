@@ -524,7 +524,8 @@ class RunnerService {
 
   async _downloadFiles(runner, sandboxId, files) {
     const downloaded = [];
-    const uploadDir = path.join(__dirname, '..', '..', 'uploads', runner.id, sandboxId);
+    const safeSandboxId = path.basename(sandboxId);
+    const uploadDir = path.join(__dirname, '..', '..', 'uploads', runner.id, safeSandboxId);
     
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -532,11 +533,16 @@ class RunnerService {
 
     for (const f of files) {
       try {
-        const fetchRes = await fetch(`${runner.url}/files/${sandboxId}/${f.name}`, {
+        const safeFileName = path.basename(f.name);
+        const fetchRes = await fetch(`${runner.url}/files/${safeSandboxId}/${safeFileName}`, {
           headers: this._getAuthHeaders(runner)
         });
         if (fetchRes.ok) {
-          const localPath = path.join(uploadDir, f.name);
+          const localPath = path.join(uploadDir, safeFileName);
+          if (!localPath.startsWith(uploadDir)) {
+            console.error(`[RunnerService] Path traversal attempt detected: ${localPath}`);
+            continue;
+          }
           const arrayBuffer = await fetchRes.arrayBuffer();
           fs.writeFileSync(localPath, Buffer.from(arrayBuffer));
           downloaded.push(localPath);

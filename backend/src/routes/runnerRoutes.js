@@ -53,7 +53,7 @@ router.delete('/:id', authorizeAdmin, async (req, res) => {
 });
 
 // Run a module on a runner
-router.post('/:id/run', async (req, res, next) => {
+router.post('/:id/run', authorizeAdmin, async (req, res, next) => {
   try {
     const { module, args } = req.body;
     if (!module) return res.status(400).json({ success: false, error: { message: 'module is required' } });

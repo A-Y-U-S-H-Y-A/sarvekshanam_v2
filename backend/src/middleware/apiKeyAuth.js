@@ -44,7 +44,9 @@ async function apiKeyAuth(req, res, next) {
     if (!user) return next();
 
     // Mark last used (fire-and-forget)
-    apiKey.update({ last_used_at: new Date() }).catch(() => {});
+    apiKey.update({ last_used_at: new Date() }).catch(err => {
+      console.error('Failed to update api key last_used_at:', err.message);
+    });
 
     req.user = { id: user.id, username: user.username, role: user.role };
     req.apiKey = { id: apiKey.id, name: apiKey.name, scopes: apiKey.scopes_json };

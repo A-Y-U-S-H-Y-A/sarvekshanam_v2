@@ -7,6 +7,16 @@ const PowerUser = (() => {
   let _activeModule  = null;   // meta object
   let _activeSession = null;   // latest session ID for AI attachment
 
+  function _escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────────
 
   async function init() {
@@ -32,7 +42,7 @@ const PowerUser = (() => {
       if (select) {
         const val = select.value;
         select.innerHTML = '<option value="">Auto (Queue)</option>' + 
-          data.map(r => `<option value="${r.id}">${r.name} (${r.status})</option>`).join('');
+          data.map(r => `<option value="${_escHtml(r.id)}">${_escHtml(r.name)} (${_escHtml(r.status)})</option>`).join('');
         if (val) select.value = val;
       }
     } catch(e) {
@@ -49,7 +59,7 @@ const PowerUser = (() => {
       _categories = data.categories || {};
       renderTree(_categories);
     } catch (err) {
-      tree.innerHTML = `<p style="padding:12px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);">Failed to load modules:<br/>${err.message}</p>`;
+      tree.innerHTML = `<p style="padding:12px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);">Failed to load modules:<br/>${_escHtml(err.message)}</p>`;
     }
   }
 
@@ -76,13 +86,13 @@ const PowerUser = (() => {
       
       catEl.innerHTML = `
         <div class="category-header" onclick="PowerUser._toggleCategory(this)">
-          ${cat}
+          ${_escHtml(cat)}
           <span class="category-arrow" style="${isCollapsed ? 'transform: rotate(-90deg);' : ''}">▾</span></div>
         <div class="category-modules ${isCollapsed ? 'collapsed' : ''}" id="${catId}">
           ${mods.map(m => `
-            <div class="module-item" id="mod-item-${m.id}" onclick="PowerUser.selectModule('${m.id}')" title="${m.description}">
+            <div class="module-item" id="mod-item-${_escHtml(m.id)}" onclick="PowerUser.selectModule('${_escHtml(m.id)}')" title="${_escHtml(m.description)}">
               <span class="mod-dot"></span>
-              <span>${m.name}</span>
+              <span>${_escHtml(m.name)}</span>
             </div>
           `).join('')}
         </div>
@@ -140,18 +150,18 @@ const PowerUser = (() => {
     const paramContainer = document.getElementById('module-params');
     paramContainer.innerHTML = meta.parameters.map(p => `
       <div class="param-field">
-        <label for="param-${p.name}" >${p.name}${p.required ? ' *' : ''}</label>
+        <label for="param-${_escHtml(p.name)}" >${_escHtml(p.name)}${p.required ? ' *' : ''}</label>
         ${p.type === 'select'
-          ? `<select id="param-${p.name}" class="select-styled" style="width:100%;">
-               ${p.options.map(o => `<option value="${o}">${o}</option>`).join('')}
+          ? `<select id="param-${_escHtml(p.name)}" class="select-styled" style="width:100%;">
+               ${p.options.map(o => `<option value="${_escHtml(o)}">${_escHtml(o)}</option>`).join('')}
              </select>`
-          : `<input id="param-${p.name}" type="text"
+          : `<input id="param-${_escHtml(p.name)}" type="text"
                class="input"
-               value="${p.default || ''}"
-               placeholder="${p.placeholder || p.description || ''}"
+               value="${_escHtml(p.default || '')}"
+               placeholder="${_escHtml(p.placeholder || p.description || '')}"
                ${p.required ? 'required' : ''} />`
         }
-        <span style="display:block;margin-top:4px;font-family:var(--font-mono);font-size:0.62rem;color:var(--fg-4);font-style:italic;">${p.description}</span>
+        <span style="display:block;margin-top:4px;font-family:var(--font-mono);font-size:0.62rem;color:var(--fg-4);font-style:italic;">${_escHtml(p.description)}</span>
       </div>
     `).join('');
   }
@@ -310,23 +320,23 @@ const PowerUser = (() => {
       }
       listEl.innerHTML = data.sessions.map(s => {
         let extras = '';
-        if (s.runner_name) extras += `<span class="status-badge">🏃 ${s.runner_name}</span>`;
-        if (s.retry_count > 0) extras += `<span class="status-badge">Retry ${s.retry_count}</span>`;
-        if (s.queue_position > 0) extras += `<span class="status-badge">Queue: #${s.queue_position}</span>`;
+        if (s.runner_name) extras += `<span class="status-badge">🏃 ${_escHtml(s.runner_name)}</span>`;
+        if (s.retry_count > 0) extras += `<span class="status-badge">Retry ${_escHtml(s.retry_count)}</span>`;
+        if (s.queue_position > 0) extras += `<span class="status-badge">Queue: #${_escHtml(s.queue_position)}</span>`;
         
         let relaunchBtn = '';
         if (s.status === 'failed_permanent') {
-          relaunchBtn = `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); PowerUser.relaunch('${s.id}')" title="Re-launch">↻</button>`;
+          relaunchBtn = `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); PowerUser.relaunch('${_escHtml(s.id)}')" title="Re-launch">↻</button>`;
         }
         
         return `
-        <div class="session-item" onclick="PowerUser.viewSession('${s.id}')">
-          <span class="status-badge status-${s.status}">${s.status}</span>
-          <span class="session-name" title="${s.targets?.join(', ')}">${s.name || s.id}</span>
-          <span class="session-meta">${_relTime(s.createdAt)}</span>
+        <div class="session-item" onclick="PowerUser.viewSession('${_escHtml(s.id)}')">
+          <span class="status-badge status-${_escHtml(s.status)}">${_escHtml(s.status)}</span>
+          <span class="session-name" title="${_escHtml(s.targets?.join(', '))}">${_escHtml(s.name || s.id)}</span>
+          <span class="session-meta">${_escHtml(_relTime(s.createdAt))}</span>
           ${extras}
           ${relaunchBtn}
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="event.stopPropagation(); PowerUser.attachSession('${s.id}','${(s.name||s.id).replace(/'/g,'')}')" title="Attach to AI Chat">📎</button>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="event.stopPropagation(); PowerUser.attachSession('${_escHtml(s.id)}','${_escHtml((s.name||s.id).replace(/'/g,''))}')" title="Attach to AI Chat">📎</button>
         </div>
       `;
       }).join('');

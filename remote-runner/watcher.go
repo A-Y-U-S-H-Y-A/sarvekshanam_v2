@@ -21,7 +21,11 @@ func WatchConfig(configPath string, onReload func()) {
 			lastMod = info.ModTime()
 		}
 
-		absPath, _ := filepath.Abs(configPath)
+		absPath, err := filepath.Abs(configPath)
+		if err != nil {
+			log.Printf("[Watcher] Error getting abs path: %v", err)
+			absPath = configPath
+		}
 		log.Printf("[Watcher] Watching %s for changes (polling every 5s)", absPath)
 
 		ticker := time.NewTicker(5 * time.Second)
@@ -50,7 +54,11 @@ func WatchDirectory(dirPath string, onReload func(event string, filename string)
 		return
 	}
 
-	absPath, _ := filepath.Abs(dirPath)
+	absPath, err := filepath.Abs(dirPath)
+	if err != nil {
+		log.Printf("[Watcher] Error getting abs path: %v", err)
+		absPath = dirPath
+	}
 	log.Printf("[Watcher] Watching directory %s for changes using fsnotify", absPath)
 
 	go func() {

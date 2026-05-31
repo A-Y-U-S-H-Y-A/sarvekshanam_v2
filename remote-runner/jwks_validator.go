@@ -93,7 +93,7 @@ func (v *JWKSValidator) loadConfig() error {
 	data, err := os.ReadFile(v.configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Printf("[JWKS] No %s found — JWKS validation disabled", v.configPath)
+			log.Printf("[JWKS] No %q found — JWKS validation disabled", v.configPath)
 			v.mu.Lock()
 			v.urls = nil
 			v.mu.Unlock()
@@ -112,7 +112,7 @@ func (v *JWKSValidator) loadConfig() error {
 	v.lastLoad = time.Now()
 	v.mu.Unlock()
 
-	log.Printf("[JWKS] Loaded %d JWKS URL(s) from %s", len(cfg.URLs), v.configPath)
+	log.Printf("[JWKS] Loaded %d JWKS URL(s) from %q", len(cfg.URLs), v.configPath)
 	return nil
 }
 
@@ -137,7 +137,7 @@ func (v *JWKSValidator) refreshKeys() {
 	for _, url := range urls {
 		keys, err := fetchJWKS(url)
 		if err != nil {
-			log.Printf("[JWKS] Failed to fetch from %s: %v", url, err)
+			log.Printf("[JWKS] Failed to fetch from %q: %v", url, err)
 			continue
 		}
 		for kid, key := range keys {
@@ -147,9 +147,12 @@ func (v *JWKSValidator) refreshKeys() {
 
 	if len(newKeys) > 0 {
 		v.mu.Lock()
-		v.keys = newKeys
+		for kid, key := range newKeys {
+			v.keys[kid] = key
+		}
+		total := len(v.keys)
 		v.mu.Unlock()
-		log.Printf("[JWKS] Cached %d signing key(s)", len(newKeys))
+		log.Printf("[JWKS] Cached %d signing key(s)", total)
 	}
 }
 
@@ -178,7 +181,7 @@ func fetchJWKS(url string) (map[string]*rsa.PublicKey, error) {
 		}
 		pubKey, err := jwkToRSAPublicKey(jwk)
 		if err != nil {
-			log.Printf("[JWKS] Failed to parse key %s: %v", jwk.Kid, err)
+			log.Printf("[JWKS] Failed to parse key %q: %v", jwk.Kid, err)
 			continue
 		}
 		keys[jwk.Kid] = pubKey
@@ -259,8 +262,11 @@ func (v *JWKSValidator) ValidateJWT(tokenStr string) (*JWTPayload, error) {
 	}
 
 	// Check expiration
+	if payload.Exp <= 0 {
+		return nil, errors.New("token expiration missing or invalid")
+	}
 	now := time.Now().Unix()
-	if payload.Exp > 0 && now > payload.Exp {
+	if now >= payload.Exp {
 		return nil, errors.New("token expired")
 	}
 
@@ -281,12 +287,5 @@ func (v *JWKSValidator) HasKeys() bool {
 
 // base64URLDecode decodes base64url-encoded data (no padding).
 func base64URLDecode(s string) ([]byte, error) {
-	// Add padding if needed
-	switch len(s) % 4 {
-	case 2:
-		s += "=="
-	case 3:
-		s += "="
-	}
-	return base64.URLEncoding.DecodeString(s)
+	return base64.RawURLEncoding.DecodeString(s)
 }

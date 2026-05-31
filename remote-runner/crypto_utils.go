@@ -57,6 +57,10 @@ func GetPublicKeyPEM() string {
 // DecryptPayload decrypts a Base64-encoded ciphertext that was encrypted
 // with our public key using RSA-OAEP with SHA-256.
 func DecryptPayload(base64Ciphertext string) (string, error) {
+	if len(base64Ciphertext) > 512 {
+		return "", fmt.Errorf("ciphertext too large")
+	}
+
 	cryptoMgr.mu.RLock()
 	privKey := cryptoMgr.privateKey
 	cryptoMgr.mu.RUnlock()

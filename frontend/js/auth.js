@@ -14,7 +14,7 @@ const Auth = (() => {
   }
 
   function getUser()  { return _user; }
-  function getToken() { return localStorage.getItem('sarv_token'); }
+  function getToken() { return sessionStorage.getItem('sarv_token'); }
 
   async function init() {
     // Check URL for OIDC tokens or errors first
@@ -24,7 +24,7 @@ const Auth = (() => {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
     if (params.has('oidc_token')) {
-      localStorage.setItem('sarv_token', params.get('oidc_token'));
+      sessionStorage.setItem('sarv_token', params.get('oidc_token'));
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
@@ -49,7 +49,7 @@ const Auth = (() => {
       hideOverlay();
       return _user;
     } catch (_authErr) {
-      localStorage.removeItem('sarv_token');
+      sessionStorage.removeItem('sarv_token');
       showOverlay();
       return null;
     }
@@ -99,7 +99,7 @@ const Auth = (() => {
       } else {
         data = await API.auth.register(username, password);
       }
-      localStorage.setItem('sarv_token', data.token);
+      sessionStorage.setItem('sarv_token', data.token);
       _user = data.user;
       hideOverlay();
       if (typeof App !== 'undefined') App.onLogin(_user);
@@ -112,7 +112,7 @@ const Auth = (() => {
   }
 
   function logout() {
-    localStorage.removeItem('sarv_token');
+    sessionStorage.removeItem('sarv_token');
     _user = null;
     WsClient.disconnect();
     showOverlay();

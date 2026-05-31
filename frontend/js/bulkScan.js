@@ -6,6 +6,16 @@ const BulkScan = (() => {
   let _sessions = [];
   let _allModules = [];
 
+  function _escHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   async function init() {
     await loadModuleCheckboxes();
     await loadRunners();
@@ -24,7 +34,7 @@ const BulkScan = (() => {
       if (select) {
         const val = select.value;
         select.innerHTML = '<option value="">Auto (Queue)</option>' + 
-          data.map(r => `<option value="${r.id}">${r.name} (${r.status})</option>`).join('');
+          data.map(r => `<option value="${_escHtml(r.id)}">${_escHtml(r.name)} (${_escHtml(r.status)})</option>`).join('');
         if (val) select.value = val;
       }
     } catch(e) {
@@ -43,10 +53,10 @@ const BulkScan = (() => {
       _allModules = all;
       container.innerHTML = all.map(m => `
         <div class="bulk-module-item" onclick="this.querySelector('input').click()">
-          <input type="checkbox" id="bulk-mod-${m.id}" value="${m.id}" onchange="BulkScan.updateCountBadge();BulkScan.renderParams()" style="accent-color:var(--amber);width:13px;height:13px;flex-shrink:0;cursor:pointer;" ${checked.includes(m.id) ? 'checked' : ''} />
-          <label for="bulk-mod-${m.id}" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px;">
-            ${m.name} 
-            <span style="font-size:0.62rem;color:var(--fg-4);font-style:italic;font-weight:400;">${m.category}</span>
+          <input type="checkbox" id="bulk-mod-${_escHtml(m.id)}" value="${_escHtml(m.id)}" onchange="BulkScan.updateCountBadge();BulkScan.renderParams()" style="accent-color:var(--amber);width:13px;height:13px;flex-shrink:0;cursor:pointer;" ${checked.includes(m.id) ? 'checked' : ''} />
+          <label for="bulk-mod-${_escHtml(m.id)}" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px;">
+            ${_escHtml(m.name)} 
+            <span style="font-size:0.62rem;color:var(--fg-4);font-style:italic;font-weight:400;">${_escHtml(m.category)}</span>
           </label>
         </div>
       `).join('');
@@ -177,25 +187,28 @@ const BulkScan = (() => {
     const barColor = s.status === 'failed' ? 'var(--accent-red)' : '';
     
     let extras = '';
-    if (s.runner_name) extras += `<span class="status-badge">🏃 ${s.runner_name}</span>`;
-    if (s.retry_count > 0) extras += `<span class="status-badge">Retry ${s.retry_count}</span>`;
-    if (s.queue_position > 0) extras += `<span class="status-badge">Queue: #${s.queue_position}</span>`;
+    if (s.runner_name) extras += `<span class="status-badge">🏃 ${_escHtml(s.runner_name)}</span>`;
+    if (s.retry_count > 0) extras += `<span class="status-badge">Retry ${_escHtml(s.retry_count)}</span>`;
+    if (s.queue_position > 0) extras += `<span class="status-badge">Queue: #${_escHtml(s.queue_position)}</span>`;
+
+    const sessName = s.name || s.targets?.[0] || '—';
+    const attachName = (s.name || s.id).replace(/'/g,'');
 
     return `
-      <div class="bulk-progress-item" id="bulk-sess-${s.id}">
+      <div class="bulk-progress-item" id="bulk-sess-${_escHtml(s.id)}">
         <div class="bulk-progress-header">
-          <span class="bulk-progress-name">${s.name || s.targets?.[0] || '—'}</span>
+          <span class="bulk-progress-name">${_escHtml(sessName)}</span>
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             ${extras}
-            <span class="status-badge status-${s.status}">${s.status}</span>
-            <button class="btn btn-ghost btn-sm" onclick="PowerUser.attachSession('${s.id}','${(s.name||s.id).replace(/'/g,'')}')">📎</button>
+            <span class="status-badge status-${_escHtml(s.status)}">${_escHtml(s.status)}</span>
+            <button class="btn btn-ghost btn-sm" onclick="PowerUser.attachSession('${_escHtml(s.id)}','${_escHtml(attachName)}')">📎</button>
           </div>
         </div>
         <div class="bulk-progress-bar-wrap">
-          <div class="bulk-progress-bar-fill" id="bar-${s.id}" style="width:${pct}%;${barColor ? 'background:'+barColor : ''}"></div>
+          <div class="bulk-progress-bar-fill" id="bar-${_escHtml(s.id)}" style="width:${pct}%;${barColor ? 'background:'+barColor : ''}"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);">
-          <span>${s.moduleIds?.join(', ')}</span>
+          <span>${_escHtml(s.moduleIds?.join(', '))}</span>
           <span>${_relTime(s.createdAt)}</span>
         </div>
       </div>
@@ -256,8 +269,8 @@ const BulkScan = (() => {
       for (const [name, p] of uniqueParams.entries()) {
         html += `
           <div class="field-group" style="margin:0;">
-            <label class="input-label">${p.name} ${p.required ? '<span style="color:var(--accent-red)">*</span>' : ''}</label>
-            <input type="${p.type === 'number' ? 'number' : 'text'}" class="input bulk-param-input" data-param-name="${p.name}" placeholder="${p.description || ''}" />
+            <label class="input-label">${_escHtml(p.name)} ${p.required ? '<span style="color:var(--accent-red)">*</span>' : ''}</label>
+            <input type="${p.type === 'number' ? 'number' : 'text'}" class="input bulk-param-input" data-param-name="${_escHtml(p.name)}" placeholder="${_escHtml(p.description || '')}" />
           </div>
         `;
       }
@@ -265,12 +278,12 @@ const BulkScan = (() => {
       modules.forEach(m => {
         const params = (m.parameters || []).filter(p => p.name !== 'target');
         if (!params.length) return;
-        html += `<div style="font-weight:600;font-size:0.8rem;color:var(--amber);margin-top:4px;">${m.name}</div>`;
+        html += `<div style="font-weight:600;font-size:0.8rem;color:var(--amber);margin-top:4px;">${_escHtml(m.name)}</div>`;
         params.forEach(p => {
           html += `
             <div class="field-group" style="margin:0 0 0 8px;">
-              <label class="input-label">${p.name} ${p.required ? '<span style="color:var(--accent-red)">*</span>' : ''}</label>
-              <input type="${p.type === 'number' ? 'number' : 'text'}" class="input bulk-param-input" data-module-id="${m.id}" data-param-name="${p.name}" placeholder="${p.description || ''}" />
+              <label class="input-label">${_escHtml(p.name)} ${p.required ? '<span style="color:var(--accent-red)">*</span>' : ''}</label>
+              <input type="${p.type === 'number' ? 'number' : 'text'}" class="input bulk-param-input" data-module-id="${_escHtml(m.id)}" data-param-name="${_escHtml(p.name)}" placeholder="${_escHtml(p.description || '')}" />
             </div>
           `;
         });

@@ -104,7 +104,7 @@ const Commands = (() => {
           </div>
           <span class="cmd-meta">${_relTime(c.requestedAt)}</span>
         </div>
-        <div class="cmd-meta">by ${_escHtml(c.username)}${c.resolvedBy ? ` · resolved by ${c.resolvedBy}` : ''}</div>
+        <div class="cmd-meta">by ${_escHtml(c.username)}${c.resolvedBy ? ` · resolved by ${_escHtml(c.resolvedBy)}` : ''}</div>
         ${reasonHtml}
         ${actions}
         ${outputHtml}

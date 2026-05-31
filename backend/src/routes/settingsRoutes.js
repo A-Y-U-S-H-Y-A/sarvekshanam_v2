@@ -22,7 +22,7 @@ router.post('/proxy', authenticate, adminOnly, (req, res) => {
 
   const svc = getProxyService();
   svc.mode = mode;
-  svc.target = target || '';
+  svc.target = (target || '').toString().replace(/[\r\n]/g, '');
 
   // Optionally persist to .env file if it exists
   try {

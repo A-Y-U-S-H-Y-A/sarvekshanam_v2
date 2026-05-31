@@ -103,7 +103,7 @@ const Appointments = (() => {
     if (!sel) return;
     
     sel.innerHTML = _appointments.map(a => 
-      `<option value="${a.id}">${a.name}</option>`
+      `<option value="${_escHtml(a.id)}">${_escHtml(a.name)}</option>`
     ).join('');
     
     if (_activeId) {
@@ -130,9 +130,9 @@ const Appointments = (() => {
           <span>📅 ${_relTime(a.createdAt)}</span>
         </div>
         <div style="display:flex;gap:6px;padding-top:10px;border-top:1px solid var(--border);margin-top:auto;">
-          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="Appointments.viewDetail('${a.id}')">View</button>
-          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="Appointments.setActive('${a.id}');showToast('Context set to ${a.name.replace(/'/g,'')}')">Active</button>
-          ${Auth.getUser()?.role === 'admin' ? `<button class="btn btn-danger btn-sm" style="flex:0;" onclick="Appointments.deleteAppointment('${a.id}')" title="Delete">🗑️</button>` : ''}
+          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="Appointments.viewDetail('${_escInline(a.id)}')">View</button>
+          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="Appointments.setActive('${_escInline(a.id)}');showToast('Context set to ${_escInline(a.name)}')">Active</button>
+          ${Auth.getUser()?.role === 'admin' ? `<button class="btn btn-danger btn-sm" style="flex:0;" onclick="Appointments.deleteAppointment('${_escInline(a.id)}')" title="Delete">🗑️</button>` : ''}
         </div>
       </div>
     `).join('');
@@ -208,6 +208,15 @@ const Appointments = (() => {
   function _escHtml(str) {
     if (!str) return '';
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function _escInline(str) {
+    if (!str) return '';
+    return _escHtml(str)
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, '\\\'')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r');
   }
 
   function _relTime(iso) {

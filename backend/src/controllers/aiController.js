@@ -128,9 +128,10 @@ exports.installPackage = async (req, res, next) => {
       return res.status(400).json({ success: false, error: { message: 'Invalid or unsupported providerId for installation.' } });
     }
 
-    const { exec } = require('child_process');
+    const { execFile } = require('child_process');
+    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-    exec(`npm install ${pkg.install}`, { cwd: process.cwd() }, (error, stdout, stderr) => {
+    execFile(npmCmd, ['install', pkg.install], { cwd: process.cwd() }, (error, stdout, stderr) => {
       if (error) {
         return res.status(500).json({ success: false, error: { message: error.message } });
       }
@@ -152,9 +153,10 @@ exports.uninstallPackage = async (req, res, next) => {
       return res.status(400).json({ success: false, error: { message: 'Invalid or unsupported providerId for uninstallation.' } });
     }
 
-    const { exec } = require('child_process');
+    const { execFile } = require('child_process');
+    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-    exec(`npm uninstall ${pkg.uninstall}`, { cwd: process.cwd() }, (error, stdout, stderr) => {
+    execFile(npmCmd, ['uninstall', pkg.uninstall], { cwd: process.cwd() }, (error, stdout, stderr) => {
       if (error) {
         return res.status(500).json({ success: false, error: { message: error.message } });
       }

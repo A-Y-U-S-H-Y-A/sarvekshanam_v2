@@ -15,7 +15,7 @@ async function closeDb() {
   try {
     await db.sequelize.close();
   } catch (err) {
-    /* ignore */
+    console.error('Error closing database:', err);
   }
 }
 

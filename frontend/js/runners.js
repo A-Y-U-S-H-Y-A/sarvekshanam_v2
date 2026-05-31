@@ -2,6 +2,16 @@ const Runners = {
   list: [],
   groups: [],
 
+  _escHtml(unsafe) {
+    if (unsafe == null) return '';
+    return String(unsafe)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  },
+
   async load() {
     try {
       const [rData, gData] = await Promise.all([
@@ -31,10 +41,10 @@ const Runners = {
       <div class="group-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
           <h3 class="group-card-header" style="border:none;padding:0;margin:0;">
-            🏢 ${g.name}
+            🏢 ${this._escHtml(g.name)}
             <span class="status-badge status-online">Active</span>
           </h3>
-          <span style="font-family:var(--font-mono);font-size:0.62rem;color:var(--fg-4);">${g.manifest_hash.substring(0,8)}</span>
+          <span style="font-family:var(--font-mono);font-size:0.62rem;color:var(--fg-4);">${this._escHtml(g.manifest_hash ? g.manifest_hash.substring(0,8) : '')}</span>
         </div>
         <div>
           <p style="font-family:var(--font-mono);font-size:0.62rem;color:var(--fg-4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Load Distribution</p>
@@ -56,24 +66,24 @@ const Runners = {
     listEl.innerHTML = this.list.map(r => `
       <div class="runner-card">
         <div class="runner-card-header">
-          <span class="runner-name">${r.name}</span>
+          <span class="runner-name">${this._escHtml(r.name)}</span>
           <div style="display:flex;gap:6px;align-items:center;">
-            ${r.group ? `<span class="status-badge">${r.group}</span>` : ''}
-            <span class="status-badge status-${r.status || 'offline'}">${r.status || 'unknown'}</span>
+            ${r.group ? `<span class="status-badge">${this._escHtml(r.group)}</span>` : ''}
+            <span class="status-badge status-${this._escHtml(r.status || 'offline')}">${this._escHtml(r.status || 'unknown')}</span>
           </div>
         </div>
         <div >
-          <p class="runner-url"><strong style="color:var(--fg-4);font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;">URL:</strong> ${r.url}</p>
-          <p class="runner-stat"><strong style="color:var(--fg-4);font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;">Last Seen:</strong> ${r.last_seen_at ? new Date(r.last_seen_at).toLocaleString() : 'Never'}</p>
+          <p class="runner-url"><strong style="color:var(--fg-4);font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;">URL:</strong> ${this._escHtml(r.url)}</p>
+          <p class="runner-stat"><strong style="color:var(--fg-4);font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;">Last Seen:</strong> ${this._escHtml(r.last_seen_at ? new Date(r.last_seen_at).toLocaleString() : 'Never')}</p>
           <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
             <div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--fg-4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Modules</div>
             <div style="display:flex;flex-wrap:wrap;gap:4px;">
-              ${(r.modules && r.modules.length > 0) ? r.modules.map(m => `<span style="font-family:var(--font-mono);font-size:0.6rem;padding:2px 6px;background:var(--surface);border:1px solid var(--border);color:var(--fg-3);">${m.name}</span>`).join('') : '<span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--fg-4);font-style:italic;">None/Disconnected</span>'}
+              ${(r.modules && r.modules.length > 0) ? r.modules.map(m => `<span style="font-family:var(--font-mono);font-size:0.6rem;padding:2px 6px;background:var(--surface);border:1px solid var(--border);color:var(--fg-3);">${this._escHtml(m.name)}</span>`).join('') : '<span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--fg-4);font-style:italic;">None/Disconnected</span>'}
             </div>
           </div>
         </div>
         <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
-          <button class="btn btn-ghost btn-sm" onclick="Runners.delete('${r.id}')">🗑 Delete</button>
+          <button class="btn btn-ghost btn-sm" onclick="Runners.delete('${this._escHtml(r.id)}')">🗑 Delete</button>
         </div>
       </div>
     `).join('');

@@ -13,7 +13,10 @@ module.exports = {
     
     for (const table of tables) {
       // Check if column exists to be idempotent
-      const tableInfo = await queryInterface.describeTable(table).catch(() => null);
+      const tableInfo = await queryInterface.describeTable(table).catch(err => {
+        console.warn(`Warning: Could not describe table ${table}:`, err.message);
+        return null;
+      });
       if (tableInfo && !tableInfo['deleted_at']) {
         await queryInterface.addColumn(table, 'deleted_at', {
           type: Sequelize.DATE,
@@ -34,7 +37,10 @@ module.exports = {
     ];
     
     for (const table of tables) {
-      const tableInfo = await queryInterface.describeTable(table).catch(() => null);
+      const tableInfo = await queryInterface.describeTable(table).catch(err => {
+        console.warn(`Warning: Could not describe table ${table}:`, err.message);
+        return null;
+      });
       if (tableInfo && tableInfo['deleted_at']) {
         await queryInterface.removeColumn(table, 'deleted_at');
       }

@@ -61,6 +61,14 @@ func CreateSandbox(moduleDir string) (*Sandbox, error) {
 			return nil, fmt.Errorf("path traversal attempt detected: %s", entry.Name())
 		}
 
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			continue
+		}
+
 		if entry.IsDir() {
 			continue
 		}

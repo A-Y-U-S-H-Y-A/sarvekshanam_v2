@@ -9,7 +9,7 @@ const API = (() => {
   const BASE = '';   // same-origin; change to 'http://host:port' for remote backend
 
   function getToken() {
-    return localStorage.getItem('sarv_token') || '';
+    return sessionStorage.getItem('sarv_token') || '';
   }
 
   function headers(extra = {}) {
@@ -24,7 +24,10 @@ const API = (() => {
     const opts = { method, headers: headers() };
     if (body !== undefined) opts.body = JSON.stringify(body);
     const res = await fetch(`${BASE}${path}`, opts);
-    const data = await res.json().catch(() => ({ success: false, error: { message: res.statusText } }));
+    const data = await res.json().catch(err => {
+      console.error('API Error: Failed to parse JSON response:', err);
+      return { success: false, error: { message: res.statusText } };
+    });
     if (!data.success) throw Object.assign(new Error(data.error?.message || 'Request failed'), { status: res.status, data });
     return data.data;
   }
@@ -111,7 +114,10 @@ const API = (() => {
       })
         .then(async (res) => {
           if (!res.ok) {
-            const d = await res.json().catch(() => ({}));
+            const d = await res.json().catch(err => {
+              console.error('API Error: Failed to parse JSON response on chat error:', err);
+              return {};
+            });
             throw new Error(d.error?.message || `HTTP ${res.status}`);
           }
           const reader  = res.body.getReader();

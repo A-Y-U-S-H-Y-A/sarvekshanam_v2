@@ -5,7 +5,8 @@
  ─────────────────────────────────────────────────────────────────────────── */
 
 const WsClient = (() => {
-  const WS_URL        = `ws://${location.host}/ws`;
+  const wsProtocol    = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const WS_URL        = `${wsProtocol}//${location.host}/ws`;
   const RECONNECT_MAX = 30000;   // max backoff 30s
   const PING_INTERVAL = 20000;   // send PING every 20s
 

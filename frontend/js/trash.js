@@ -1,6 +1,16 @@
 'use strict';
 
 class TrashManager {
+  _escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   constructor() {
     this.container = document.getElementById('trash-container');
     this.init();
@@ -31,7 +41,7 @@ class TrashManager {
       this.render(data);
     } catch (err) {
       console.error(err);
-      this.container.innerHTML = `<p class="error">Error loading trash: ${err.message}</p>`;
+      this.container.innerHTML = `<p class="error">Error loading trash: ${this._escHtml(err.message)}</p>`;
     }
   }
 
@@ -46,7 +56,7 @@ class TrashManager {
 
     for (const [model, records] of Object.entries(trashData)) {
       html += `<div>
-        <div class="trash-category-title">${model}s pending deletion</div>
+        <div class="trash-category-title">${this._escHtml(model)}s pending deletion</div>
         <div class="trash-grid">`;
 
       for (const r of records) {
@@ -66,13 +76,13 @@ class TrashManager {
         html += `
           <div class="trash-item">
             <div class="trash-item-header">
-              <span class="trash-item-name">${name}</span>
+              <span class="trash-item-name">${this._escHtml(name)}</span>
               <span class="status-badge ${statusClass}">${timeRemaining}</span>
             </div>
             <div class="trash-item-meta">Deleted: ${deletedAt.toLocaleString()}</div>
             <div class="trash-item-actions">
-              <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="trashManager.restore('${model}', '${r.id}')">Restore</button>
-              <button class="btn btn-danger btn-sm" style="flex:1;" onclick="trashManager.forceDelete('${model}', '${r.id}')" title="Delete Permanently">Erase</button>
+              <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="trashManager.restore('${this._escHtml(model)}', '${this._escHtml(r.id)}')">Restore</button>
+              <button class="btn btn-danger btn-sm" style="flex:1;" onclick="trashManager.forceDelete('${this._escHtml(model)}', '${this._escHtml(r.id)}')" title="Delete Permanently">Erase</button>
             </div>
           </div>
         `;

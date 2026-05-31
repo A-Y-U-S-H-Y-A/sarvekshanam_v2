@@ -145,7 +145,9 @@ function getVectorService() {
 }
 function _resetVectorService() {
   if (_instance) {
-    _instance.close().catch(() => {});
+    _instance.close().catch(err => {
+      console.error('Error tearing down Vector DB:', err.message);
+    });
   }
   _instance = null;
 }

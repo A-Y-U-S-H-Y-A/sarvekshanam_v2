@@ -26,5 +26,8 @@ func AcquireSemaphore() error {
 
 // ReleaseSemaphore releases a slot.
 func ReleaseSemaphore() {
-	<-concurrencySem
+	select {
+	case <-concurrencySem:
+	default:
+	}
 }

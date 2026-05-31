@@ -4,9 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const Sequelize = require('sequelize');
 
-// Suppress moment.js deprecation warning caused by Sequelize trying to parse SQLite's 'CURRENT_TIMESTAMP'
-const moment = require('moment');
-moment.suppressDeprecationWarnings = true;
 
 const process = require('process');
 const basename = path.basename(__filename);

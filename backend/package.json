@@ -13,14 +13,14 @@
     "make-admin": "node scripts/makeAdmin.js"
   },
   "dependencies": {
-    "@langchain/core": "^0.3.0",
-    "@langchain/groq": "^0.1.0",
-    "@langchain/ollama": "^0.1.0",
+    "@langchain/core": "^1.1.48",
+    "@langchain/groq": "^1.2.1",
+    "@langchain/ollama": "^1.2.7",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.9.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2",
+    "express": "^4.21.2",
     "express-rate-limit": "^8.5.2",
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
@@ -38,7 +38,10 @@
     "sqlite-vec": "^0.1.9",
     "sqlite3": "^6.0.1",
     "swagger-ui-express": "^5.0.0",
-    "ws": "^8.17.0"
+    "ws": "^8.20.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "jest": "^29.7.0",

@@ -102,16 +102,20 @@ The full documentation is available in the [`docs/`](docs/) directory and can be
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/sarvekshanam.git
+git clone https://github.com/A-Y-U-S-H-Y-A/sarveskshanam_v2.git
 
 # Enter backend directory
-cd sarvekshanam/backend
+cd sarveskshanam_v2/backend
 
 # Install dependencies
 npm install
 
 # Configure environment
 cp .env.example .env
+
+# Initialize the database
+npx sequelize-cli db:migrate
+node -e "require('./src/db/database').getDb().sequelize.sync({ alter: true })"
 ````
 
 Edit `.env` and configure:
@@ -125,14 +129,6 @@ Edit `.env` and configure:
 
 ## 3. Start the Platform
 
-### Windows
-
-```bash
-../start.bat
-```
-
-### Linux / macOS
-
 ```bash
 npm run start
 ```
@@ -145,7 +141,21 @@ http://localhost:3000
 
 ---
 
-## 4. Configure Remote Runners (Optional)
+## 4. Post-Installation: Create an Admin
+
+To manage remote runners, you need an administrative account.
+
+1. Open `http://localhost:3000` in your browser.
+2. Register a new user account (e.g., `alice`).
+3. In your terminal, inside the `backend` directory, promote the account:
+
+```bash
+node scripts/makeAdmin.js alice
+```
+
+---
+
+## 5. Configure Remote Runners (Optional)
 
 Sarvekshanam is built to support distributed execution through lightweight remote runners.
 

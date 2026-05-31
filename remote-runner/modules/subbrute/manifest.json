@@ -1,0 +1,16 @@
+{
+  "id": "subbrute",
+  "name": "SubBrute DNS Spider",
+  "description": "Enumerates subdomains and DNS records using open resolvers.",
+  "category": "DNS",
+  "language": "node",
+  "entry": "main.js",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target domain name"
+    }
+  ]
+}

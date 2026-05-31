@@ -1,0 +1,16 @@
+{
+  "id": "nmap-whois",
+  "name": "Nmap WHOIS",
+  "description": "Queries the WHOIS database for a given domain or IP address using Nmap.",
+  "category": "OSINT",
+  "language": "node",
+  "entry": "main.js",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target domain or IP address"
+    }
+  ]
+}

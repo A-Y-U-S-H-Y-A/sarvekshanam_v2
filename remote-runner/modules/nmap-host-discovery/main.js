@@ -22,39 +22,12 @@ function parseQuickScan(output) {
   };
 }
 
-function mockResult(target) {
-  const output = [
-    `Starting Nmap 7.94 ( https://nmap.org )`,
-    `[MOCK] Scanning ${target}`,
-    `Nmap scan report for 192.168.1.1`,
-    `Host is up (0.00043s latency).`,
-    `Nmap scan report for 192.168.1.5`,
-    `Host is up (0.00070s latency).`,
-    `Nmap done: 256 IP addresses (2 hosts up) scanned in 2.41 seconds`,
-  ].join('\n');
 
-  return {
-    status: 'success',
-    output: output,
-    data: {
-      mock: true,
-      hosts: [
-        { host: '192.168.1.1', latency: '0.00043s' },
-        { host: '192.168.1.5', latency: '0.00070s' },
-      ],
-      totalScanned: 256,
-      hostsUp: 2,
-    }
-  };
-}
 
 const cmd = `nmap -sn ${target}`;
 exec(cmd, { timeout: 300000 }, (err, stdout, stderr) => {
   if (err) {
-    if (err.code === 'ENOENT' || (err.message && err.message.includes('ENOENT'))) {
-      console.log(JSON.stringify(mockResult(target)));
-      process.exit(0);
-    }
+
     console.log(JSON.stringify({ status: 'error', error: stderr || err.message, data: { error: err.message } }));
     process.exit(0);
   }

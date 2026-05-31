@@ -1,0 +1,22 @@
+{
+  "id": "nmap-dns-recon",
+  "name": "Nmap DNS Reconnaissance",
+  "description": "Comprehensive DNS enumeration using nmap dns-brute, dns-nsec-enum, and dns-zone-transfer scripts.",
+  "category": "DNS",
+  "language": "node",
+  "entry": "main.js",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target domain name (e.g., example.com)"
+    },
+    {
+      "name": "threads",
+      "type": "string",
+      "required": false,
+      "description": "Number of threads to use for dns-brute (default: 5)"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "id": "nmap-ip-geolocation",
+  "name": "Nmap IP Geolocation",
+  "description": "Runs multiple Nmap IP geolocation scripts (geoplugin, ipinfodb, maxmind, map-bing, map-google, map-kml) to identify the physical location of a target.",
+  "category": "OSINT",
+  "language": "node",
+  "entry": "main.js",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target IP address or domain"
+    },
+    {
+      "name": "ipinfodb_apikey",
+      "type": "string",
+      "required": false,
+      "description": "API Key for IPInfoDB (optional)"
+    },
+    {
+      "name": "maxmind_db",
+      "type": "string",
+      "required": false,
+      "description": "Path to local MaxMind DB (optional)"
+    },
+    {
+      "name": "google_apikey",
+      "type": "string",
+      "required": false,
+      "description": "API Key for Google Maps (optional)"
+    },
+    {
+      "name": "bing_apikey",
+      "type": "string",
+      "required": false,
+      "description": "API Key for Bing Maps (optional)"
+    }
+  ]
+}

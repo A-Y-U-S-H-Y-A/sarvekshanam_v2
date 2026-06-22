@@ -1,0 +1,28 @@
+{
+  "id": "nmap-service-match",
+  "name": "Nmap Service String Match",
+  "description": "Runs an Nmap service scan (-sV) and checks if a specific target string exists in the raw output (e.g., 'Microsoft SQL Server 2014 SP3').",
+  "category": "Network",
+  "language": "python",
+  "entry": "scanner.py",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target host or IP address"
+    },
+    {
+      "name": "port",
+      "type": "string",
+      "required": true,
+      "description": "Target port"
+    },
+    {
+      "name": "match_string",
+      "type": "string",
+      "required": true,
+      "description": "The exact string to search for in the Nmap output."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "nmap-ssl-ciphers",
+  "name": "Nmap SSL/TLS Enum Ciphers (MD5 Check)",
+  "description": "Checks for insecure certificate signatures (MD5) using nmap ssl-enum-ciphers script.",
+  "category": "Network",
+  "language": "python",
+  "entry": "scanner.py",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target host or IP address"
+    },
+    {
+      "name": "port",
+      "type": "string",
+      "required": false,
+      "description": "Target port (default 443)"
+    }
+  ]
+}

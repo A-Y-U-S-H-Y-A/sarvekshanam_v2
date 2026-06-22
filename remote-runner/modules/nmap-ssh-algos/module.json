@@ -1,0 +1,22 @@
+{
+  "id": "nmap-ssh-algos",
+  "name": "Nmap SSH Algorithms Check",
+  "description": "Checks for deprecated SHA1 and weak SSH algorithms using ssh2-enum-algos script.",
+  "category": "Network",
+  "language": "python",
+  "entry": "scanner.py",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target host or IP address"
+    },
+    {
+      "name": "port",
+      "type": "string",
+      "required": false,
+      "description": "Target port (default 22)"
+    }
+  ]
+}

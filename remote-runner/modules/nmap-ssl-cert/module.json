@@ -1,0 +1,28 @@
+{
+  "id": "nmap-ssl-cert",
+  "name": "Nmap SSL/TLS Certificate Check",
+  "description": "Fetches SSL certificate details and checks for self-signed or expired certificates.",
+  "category": "Network",
+  "language": "python",
+  "entry": "scanner.py",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target host or IP address"
+    },
+    {
+      "name": "port",
+      "type": "string",
+      "required": false,
+      "description": "Target port (default 443)"
+    },
+    {
+      "name": "fqdn",
+      "type": "string",
+      "required": false,
+      "description": "FQDN / Domain name (Optional, for SNI fallback check)"
+    }
+  ]
+}

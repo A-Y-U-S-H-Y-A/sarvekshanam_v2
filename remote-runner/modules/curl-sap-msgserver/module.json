@@ -1,0 +1,28 @@
+{
+  "id": "curl-sap-msgserver",
+  "name": "SAP Message Server Endpoint Check",
+  "description": "Uses curl to probe SAP Message Server endpoints (HTTP/HTTPS) and checks for a 200 OK response.",
+  "category": "Web Application",
+  "language": "python",
+  "entry": "scanner.py",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target host or IP address"
+    },
+    {
+      "name": "port",
+      "type": "string",
+      "required": true,
+      "description": "Target port"
+    },
+    {
+      "name": "endpoint",
+      "type": "string",
+      "required": true,
+      "description": "Endpoint path (e.g., msgserver/text/aslist)"
+    }
+  ]
+}

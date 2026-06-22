@@ -1,0 +1,22 @@
+{
+  "id": "python-ssl-cert",
+  "name": "Python SSL/TLS Certificate Check",
+  "description": "Deeply fetches and analyzes SSL/TLS certificates via Python sockets. Supports standard TLS and MSSQL TDS protocols.",
+  "category": "Network",
+  "language": "python",
+  "entry": "scanner.py",
+  "parameters": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target host or IP address"
+    },
+    {
+      "name": "port",
+      "type": "string",
+      "required": false,
+      "description": "Target port (default 443)"
+    }
+  ]
+}

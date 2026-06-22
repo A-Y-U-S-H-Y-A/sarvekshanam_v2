@@ -1,0 +1,11 @@
+{
+  "id": "redirect-auditor",
+  "name": "Redirect Vulnerability Scanner",
+  "description": "Checks for external domain to internal redirect vulnerability patterns. Supports custom headers and methods.",
+  "entry": "scanner.py",
+  "parameters": [
+    { "name": "target", "required": true, "description": "Target URL (use {payload} for injection point)" },
+    { "name": "method", "required": false, "description": "HTTP Method (e.g., GET, POST)" },
+    { "name": "headers", "required": false, "description": "Custom Headers (in JSON format)" }
+  ]
+}

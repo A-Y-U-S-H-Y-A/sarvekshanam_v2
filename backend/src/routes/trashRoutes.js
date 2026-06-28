@@ -39,7 +39,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
     for (const modelName of models) {
       const Model = db[modelName];
-      if (!Model) continue;
+      if (!Model || !Model.options.paranoid) continue;
 
       const records = await Model.findAll({
         where: {
@@ -73,6 +73,7 @@ router.post('/:model/:id/restore', authenticate, requireAdmin, async (req, res) 
     const Model = db[model];
 
     if (!Model) return res.status(400).json({ error: 'Invalid model' });
+    if (!Model.options.paranoid) return res.status(400).json({ error: 'Model does not support soft deletes' });
 
     const record = await Model.findByPk(id, { paranoid: false });
     if (!record) return res.status(404).json({ error: 'Record not found' });
@@ -96,6 +97,7 @@ router.delete('/:model/:id/force', authenticate, requireAdmin, async (req, res) 
     const Model = db[model];
 
     if (!Model) return res.status(400).json({ error: 'Invalid model' });
+    if (!Model.options.paranoid) return res.status(400).json({ error: 'Model does not support soft deletes' });
 
     const record = await Model.findByPk(id, { paranoid: false });
     if (!record) return res.status(404).json({ error: 'Record not found' });

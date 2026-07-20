@@ -26,8 +26,8 @@ exports.createScan = async (req, res, next) => {
 
     if (needsApproval) {
       await svc.update(session.id, { status: 'pending_approval' });
-      const { getWsHub } = require('../websockets/wsHandler');
-      getWsHub().broadcast('ADMIN_APPROVAL_REQUIRED', { sessionId: session.id, moduleIds, user: req.user.username });
+      const { getWsHandler } = require('../ws/wsHandler');
+      getWsHandler().broadcastAll({ type: 'ADMIN_APPROVAL_REQUIRED', sessionId: session.id, moduleIds, user: req.user.username });
       return res.status(202).json({ success: true, data: { session, status: 'pending_approval', message: 'Admin approval required' } });
     }
 
@@ -66,8 +66,8 @@ exports.bulkScan = async (req, res, next) => {
       for (const s of sessions) {
         await svc.update(s.id, { status: 'pending_approval' });
       }
-      const { getWsHub } = require('../websockets/wsHandler');
-      getWsHub().broadcast('ADMIN_APPROVAL_REQUIRED', { sessionIds: sessions.map(s => s.id), moduleIds, user: req.user.username });
+      const { getWsHandler } = require('../ws/wsHandler');
+      getWsHandler().broadcastAll({ type: 'ADMIN_APPROVAL_REQUIRED', sessionIds: sessions.map(s => s.id), moduleIds, user: req.user.username });
       return res.status(202).json({ success: true, data: { sessions, count: sessions.length, status: 'pending_approval', message: 'Admin approval required' } });
     }
 
@@ -153,8 +153,8 @@ exports.retryScan = async (req, res, next) => {
 
     if (needsApproval) {
       session = await svc.update(session.id, { status: 'pending_approval' });
-      const { getWsHub } = require('../websockets/wsHandler');
-      getWsHub().broadcast('ADMIN_APPROVAL_REQUIRED', { sessionId: session.id, moduleIds: session.moduleIds, user: req.user.username });
+      const { getWsHandler } = require('../ws/wsHandler');
+      getWsHandler().broadcastAll({ type: 'ADMIN_APPROVAL_REQUIRED', sessionId: session.id, moduleIds: session.moduleIds, user: req.user.username });
       return res.status(202).json({ success: true, data: { session, status: 'pending_approval', message: 'Admin approval required' } });
     }
 

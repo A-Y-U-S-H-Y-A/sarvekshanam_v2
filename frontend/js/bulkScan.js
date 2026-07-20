@@ -95,6 +95,142 @@ const BulkScan = (() => {
     updateCountBadge();
   }
 
+  // ── File Upload & Mapping ─────────────────────────────────────────────────
+  let _uploadedFileData = null;
+  let _mappedTargets = [];
+
+  async function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    try {
+      const data = await API.files.upload(file);
+      _uploadedFileData = data; // { headers, rows }
+      _showMappingUI();
+    } catch (err) {
+      if (typeof showToast !== 'undefined') showToast(`Upload failed: ${err.message}`, 'error');
+      else alert(`Upload failed: ${err.message}`);
+    }
+    event.target.value = ''; // reset
+  }
+
+  function _showMappingUI() {
+    if (!_uploadedFileData || !_uploadedFileData.headers.length) return;
+    const section = document.getElementById('bulk-mapping-section');
+    const container = document.getElementById('bulk-mapping-container');
+    if (!section || !container) return;
+
+    const headers = _uploadedFileData.headers;
+    const optionsHtml = `<option value="">-- None --</option>` + headers.map(h => `<option value="${_escHtml(h)}">${_escHtml(h)}</option>`).join('');
+
+    let html = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <label style="font-size:0.75rem;color:var(--fg-2);">Target / URI Field <span style="color:var(--accent-red)">*</span></label>
+        <select id="map-col-target" class="select-styled" style="width:200px;font-size:0.75rem;">
+          <option value="">-- Select Column --</option>
+          ${headers.map(h => `<option value="${_escHtml(h)}" ${h.toLowerCase().includes('target') || h.toLowerCase().includes('ip') || h.toLowerCase().includes('url') ? 'selected' : ''}>${_escHtml(h)}</option>`).join('')}
+        </select>
+      </div>
+    `;
+
+    // We can also allow mapping global params or specific module params.
+    // For simplicity, let's gather all unique parameters from selected modules.
+    const checkedIds = _checkedModules();
+    const modules = _allModules.filter(m => checkedIds.includes(m.id));
+    const uniqueParams = new Map();
+    modules.forEach(m => {
+      (m.parameters || []).forEach(p => {
+        if (p.name !== 'target') uniqueParams.set(p.name, p);
+      });
+    });
+
+    for (const [name, p] of uniqueParams.entries()) {
+      html += `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-size:0.75rem;color:var(--fg-2);">Param: ${_escHtml(name)}</label>
+          <select class="select-styled map-col-param" data-param-name="${_escHtml(name)}" style="width:200px;font-size:0.75rem;">
+            ${optionsHtml}
+          </select>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+    section.classList.remove('hidden');
+  }
+
+  function applyMapping() {
+    if (!_uploadedFileData) return;
+    const targetCol = document.getElementById('map-col-target').value;
+    if (!targetCol) {
+      if (typeof showToast !== 'undefined') showToast('Please select a column for Target / URI', 'error');
+      else alert('Please select a column for Target / URI');
+      return;
+    }
+
+    const paramSelects = document.querySelectorAll('.map-col-param');
+    const paramMappings = {};
+    paramSelects.forEach(sel => {
+      if (sel.value) paramMappings[sel.getAttribute('data-param-name')] = sel.value;
+    });
+
+    const rows = _uploadedFileData.rows;
+    _mappedTargets = [];
+    const uris = [];
+
+    rows.forEach(row => {
+      const uri = row[targetCol];
+      if (!uri) return;
+      uris.push(uri);
+      const rowParams = {};
+      for (const [pName, colName] of Object.entries(paramMappings)) {
+        if (row[colName] !== undefined && row[colName] !== '') {
+          rowParams[pName] = row[colName];
+        }
+      }
+      _mappedTargets.push({ uri, params: rowParams });
+    });
+
+    const ta = document.getElementById('bulk-targets');
+    ta.value = uris.join('\n');
+    updateCountBadge();
+    cancelMapping();
+    if (typeof showToast !== 'undefined') showToast(`Mapped ${_mappedTargets.length} targets`);
+  }
+
+  function cancelMapping() {
+    _uploadedFileData = null;
+    const section = document.getElementById('bulk-mapping-section');
+    if (section) section.classList.add('hidden');
+  }
+
+  async function downloadTargets(format = 'csv') {
+    const uris = _parseTargets();
+    if (!uris.length) {
+      if (typeof showToast !== 'undefined') showToast('No targets to download', 'error');
+      return;
+    }
+    
+    // Construct entries
+    const entries = uris.map(uri => {
+      const mapped = _mappedTargets.find(m => m.uri === uri);
+      return mapped ? { Target: uri, ...mapped.params } : { Target: uri };
+    });
+
+    try {
+      const blob = await API.files.download(entries, format);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `targets.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      if (typeof showToast !== 'undefined') showToast(`Download failed: ${err.message}`, 'error');
+    }
+  }
+
   // ── Run ───────────────────────────────────────────────────────────────────
 
   async function run() {
@@ -139,7 +275,13 @@ const BulkScan = (() => {
       });
     }
 
-    const runOpts = { name: name || undefined, targets, moduleIds, params };
+    const finalTargets = targets.map(uri => {
+      const mapped = _mappedTargets.find(m => m.uri === uri);
+      if (mapped) return { uri, params: mapped.params };
+      return uri;
+    });
+
+    const runOpts = { name: name || undefined, targets: finalTargets, moduleIds, params };
     const appointmentId = typeof Appointments !== 'undefined' ? Appointments.getActive() : undefined;
     if (!appointmentId) {
       showToast('Please create or select an active appointment first.', 'error');
@@ -293,5 +435,5 @@ const BulkScan = (() => {
     container.innerHTML = html;
   }
 
-  return { init, run, refresh, addTarget, updateCountBadge, renderParams };
+  return { init, run, refresh, addTarget, updateCountBadge, renderParams, handleFileUpload, applyMapping, cancelMapping, downloadTargets };
 })();

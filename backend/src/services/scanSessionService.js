@@ -125,20 +125,41 @@ class ScanSessionService extends EventEmitter {
     if (targets.length > 10000) throw new Error('Too many targets for bulk creation');
     const sessions = [];
     for (let i = 0; i < targets.length; i++) {
-      const target = targets[i];
+      const targetEntry = targets[i];
+      const targetUri = typeof targetEntry === 'string' ? targetEntry : (targetEntry.target || targetEntry.uri);
+      if (!targetUri) continue;
+      
+      const targetParams = typeof targetEntry === 'string' ? params : { ...params, ...(targetEntry.params || {}) };
+
       const session = await this.create(userId, {
         name: name ? `${name} [${i + 1}/${targets.length}]` : undefined,
         mode: 'bulk',
         runnerId,
         proxyConfig,
         appointmentId,
-        targets: [target],
+        targets: [targetUri],
         moduleIds,
-        params,
+        params: targetParams,
       });
       sessions.push(session);
     }
     return sessions;
+  }
+
+  async recoverStuckSessions() {
+    const { ScanSession } = getDb();
+    const { Op } = require('sequelize');
+    try {
+      const [updatedRowsCount] = await ScanSession.update(
+        { status: 'failed_permanent', error: 'Server restarted while session was active', updated_at: new Date() },
+        { where: { status: { [Op.in]: ['pending', 'running'] } } }
+      );
+      if (updatedRowsCount > 0) {
+        console.log(`[ScanSessionService] Recovered ${updatedRowsCount} stuck sessions by marking them as failed_permanent.`);
+      }
+    } catch (err) {
+      console.error('[ScanSessionService] Failed to recover stuck sessions:', err.message);
+    }
   }
 
   // ── Internal ─────────────────────────────────────────────────────────────

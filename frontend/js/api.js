@@ -193,5 +193,30 @@ const API = (() => {
     status: () => request('GET', '/api/queue/status'),
   };
 
-  return { auth, modules, scans, appointments, commands, ai, health, settings, runners, keys, rag, groups, queue, getToken };
+  // ── Files ─────────────────────────────────────────────────────────────────
+  const files = {
+    upload: async (file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${BASE}/api/files/upload`, {
+        method: 'POST',
+        headers: { ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
+        body: formData
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Upload failed');
+      return data.data;
+    },
+    download: async (entries, format = 'csv') => {
+      const res = await fetch(`${BASE}/api/files/download`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ entries, format })
+      });
+      if (!res.ok) throw new Error('Download failed');
+      return res.blob();
+    }
+  };
+
+  return { auth, modules, scans, appointments, commands, ai, health, settings, runners, keys, rag, groups, queue, files, getToken };
 })();

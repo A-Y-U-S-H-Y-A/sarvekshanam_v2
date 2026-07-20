@@ -331,8 +331,26 @@
               </div>
 
               <div class="field-group">
-                <label class="input-label">Targets <span style="text-transform:none;letter-spacing:0;color:var(--fg-4);font-style:italic;">(one per line or comma-separated)</span></label>
+                <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:4px;">
+                  <label class="input-label" style="margin:0;">Targets <span style="text-transform:none;letter-spacing:0;color:var(--fg-4);font-style:italic;">(one per line or comma-separated)</span></label>
+                  <div style="display:flex;gap:6px;">
+                    <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bulk-file-upload').click()">📁 Upload CSV/Excel</button>
+                    <input type="file" id="bulk-file-upload" accept=".csv, .xlsx, .xls" style="display:none;" onchange="BulkScan.handleFileUpload(event)" />
+                    <button class="btn btn-ghost btn-sm" onclick="BulkScan.downloadTargets('csv')" title="Download targets as CSV">⬇️ CSV</button>
+                    <button class="btn btn-ghost btn-sm" onclick="BulkScan.downloadTargets('xlsx')" title="Download targets as Excel">⬇️ Excel</button>
+                  </div>
+                </div>
                 <textarea id="bulk-targets" class="input" style="min-height:130px;resize:vertical;" placeholder="192.168.1.1&#10;192.168.1.2&#10;10.0.0.0/24"></textarea>
+              </div>
+
+              <!-- Column Mapping UI (Hidden by default) -->
+              <div id="bulk-mapping-section" class="hidden" style="background:var(--bg-2);padding:12px;border:1px dashed var(--border);border-radius:4px;margin-bottom:12px;">
+                <div style="font-weight:600;margin-bottom:8px;color:var(--amber);">Map Uploaded Columns</div>
+                <div id="bulk-mapping-container" style="display:flex;flex-direction:column;gap:8px;"></div>
+                <div style="margin-top:10px;display:flex;gap:8px;">
+                  <button class="btn btn-secondary btn-sm" onclick="BulkScan.applyMapping()">Apply Mapping</button>
+                  <button class="btn btn-ghost btn-sm" onclick="BulkScan.cancelMapping()">Cancel</button>
+                </div>
               </div>
 
               <div>

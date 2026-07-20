@@ -27,6 +27,7 @@
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "multer": "^2.2.0",
     "mysql2": "^3.22.2",
     "node-cron": "^4.2.1",
     "passport": "^0.7.0",
@@ -40,7 +41,8 @@
     "sqlite-vec": "^0.1.9",
     "sqlite3": "^6.0.1",
     "swagger-ui-express": "^5.0.0",
-    "ws": "^8.20.0"
+    "ws": "^8.20.0",
+    "xlsx": "^0.18.5"
   },
   "overrides": {
     "uuid": "^11.1.1",

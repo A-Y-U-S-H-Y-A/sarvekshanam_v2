@@ -15,6 +15,7 @@ router.use('/keys',          require('./apiKeyRoutes'));
 router.use('/groups',        require('./groupRoutes'));
 router.use('/queue',         require('./queueRoutes'));
 router.use('/trash',         require('./trashRoutes'));
+router.use('/files',         require('./fileRoutes'));
 router.use('/.well-known',   require('./jwksRoutes'));
 
 module.exports = router;

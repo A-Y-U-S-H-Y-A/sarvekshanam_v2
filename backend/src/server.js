@@ -52,6 +52,9 @@ httpServer.listen(config.port, () => {
   
   // Start background cleanup cron jobs
   getCleanupService().start();
+  
+  // Recover stuck sessions
+  getScanSessionService().recoverStuckSessions();
 });
 
 // ── Graceful Shutdown ─────────────────────────────────────────────────────────

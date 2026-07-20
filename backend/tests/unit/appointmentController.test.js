@@ -73,7 +73,7 @@ describe('appointmentController Unit Tests', () => {
 
     it('returns appointment', async () => {
       req.params.id = 'a1';
-      mockSvc.get.mockResolvedValue({ id: 'a1', user_id: 'u1' });
+      mockSvc.get.mockResolvedValue({ id: 'a1', userId: 'u1' });
 
       await appointmentController.get(req, res, next);
 
@@ -84,7 +84,7 @@ describe('appointmentController Unit Tests', () => {
   describe('update', () => {
     it('returns 404 if not found', async () => {
       req.params.id = 'a1';
-      mockSvc.update.mockResolvedValue(null);
+      mockSvc.get.mockResolvedValueOnce(null);
 
       await appointmentController.update(req, res, next);
 
@@ -152,7 +152,7 @@ describe('appointmentController Unit Tests', () => {
   describe('getFullContext', () => {
     it('returns 404 if context not found', async () => {
       req.params.id = 'a1';
-      mockSvc.getFullContext.mockResolvedValue(null);
+      mockSvc.get.mockResolvedValueOnce(null);
 
       await appointmentController.getFullContext(req, res, next);
 

@@ -2,12 +2,12 @@ const { setupDom, clearDom } = require('../helpers/dom');
 const fs = require('fs');
 const path = require('path');
 
-const mockLocalStorage = {
+const mockSessionStorage = {
     getItem: jest.fn(),
     setItem: jest.fn(),
     removeItem: jest.fn(),
 };
-Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+Object.defineProperty(window, 'sessionStorage', { value: mockSessionStorage });
 
 global.API = {
     auth: {
@@ -29,7 +29,7 @@ describe('Auth Client', () => {
     beforeEach(() => {
         setupDom();
         jest.clearAllMocks();
-        mockLocalStorage.getItem.mockReset();
+        mockSessionStorage.getItem.mockReset();
         window.history.replaceState = jest.fn();
     });
 
@@ -38,14 +38,14 @@ describe('Auth Client', () => {
     });
 
     it('shows overlay if no token', async () => {
-        mockLocalStorage.getItem.mockReturnValue(null);
+        mockSessionStorage.getItem.mockReturnValue(null);
         await Auth.init();
         expect(document.getElementById('auth-overlay').classList.contains('hidden')).toBe(false);
         expect(document.getElementById('app').classList.contains('hidden')).toBe(true);
     });
 
     it('hides overlay if valid token', async () => {
-        mockLocalStorage.getItem.mockReturnValue('valid');
+        mockSessionStorage.getItem.mockReturnValue('valid');
         API.auth.me.mockResolvedValue({ user: { id: 1 } });
         await Auth.init();
         expect(document.getElementById('auth-overlay').style.display).toBe('none');
@@ -61,7 +61,7 @@ describe('Auth Client', () => {
         await Auth.submit({ preventDefault: jest.fn() });
         
         expect(API.auth.login).toHaveBeenCalledWith('user', 'pass');
-        expect(mockLocalStorage.setItem).toHaveBeenCalledWith('sarv_token', 'abc');
+        expect(mockSessionStorage.setItem).toHaveBeenCalledWith('sarv_token', 'abc');
         expect(App.onLogin).toHaveBeenCalledWith({ id: 1 });
         expect(document.getElementById('auth-overlay').style.display).toBe('none');
     });
@@ -75,12 +75,12 @@ describe('Auth Client', () => {
         await Auth.submit({ preventDefault: jest.fn() });
         
         expect(API.auth.register).toHaveBeenCalledWith('user2', 'pass2');
-        expect(mockLocalStorage.setItem).toHaveBeenCalledWith('sarv_token', 'def');
+        expect(mockSessionStorage.setItem).toHaveBeenCalledWith('sarv_token', 'def');
     });
 
     it('handles logout', () => {
         Auth.logout();
-        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('sarv_token');
+        expect(mockSessionStorage.removeItem).toHaveBeenCalledWith('sarv_token');
         expect(WsClient.disconnect).toHaveBeenCalled();
         expect(document.getElementById('auth-overlay').classList.contains('hidden')).toBe(false);
     });
@@ -93,7 +93,7 @@ describe('Auth Client', () => {
         }));
 
         await Auth.init();
-        expect(mockLocalStorage.setItem).toHaveBeenCalledWith('sarv_token', 'sso_abc');
+        expect(mockSessionStorage.setItem).toHaveBeenCalledWith('sarv_token', 'sso_abc');
         expect(window.history.replaceState).toHaveBeenCalled();
 
         global.URLSearchParams = OriginalURLSearchParams;

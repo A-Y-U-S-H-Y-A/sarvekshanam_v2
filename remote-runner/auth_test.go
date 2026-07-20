@@ -22,8 +22,8 @@ func TestAuthMiddleware(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected 200 in dev mode, got %d", rr.Code)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected 401 in secure mode (no keys), got %d", rr.Code)
 	}
 
 	// 2. Keys loaded -> requires auth

@@ -167,7 +167,7 @@ describe('Runner Routes Integration Tests', () => {
     it('should validate module input', async () => {
       const res = await request(app)
         .post('/api/runners/r1/run')
-        .set('Authorization', `Bearer ${getValidToken('user-id')}`)
+        .set('Authorization', `Bearer ${getValidToken('admin-id')}`)
         .send({}); // missing module
       
       expect(res.status).toBe(400);
@@ -177,7 +177,7 @@ describe('Runner Routes Integration Tests', () => {
       mockRunnerService.runModuleOnHost.mockResolvedValueOnce({ status: 'ok' });
       const res = await request(app)
         .post('/api/runners/r1/run')
-        .set('Authorization', `Bearer ${getValidToken('user-id')}`)
+        .set('Authorization', `Bearer ${getValidToken('admin-id')}`)
         .send({ module: 'mod1', args: [] });
       
       expect(res.status).toBe(200);
@@ -188,7 +188,7 @@ describe('Runner Routes Integration Tests', () => {
       mockRunnerService.runModuleOnHost.mockRejectedValueOnce(new Error('err'));
       const res = await request(app)
         .post('/api/runners/r1/run')
-        .set('Authorization', `Bearer ${getValidToken('user-id')}`)
+        .set('Authorization', `Bearer ${getValidToken('admin-id')}`)
         .send({ module: 'mod1' });
       
       expect(res.status).toBe(500);

@@ -5,7 +5,7 @@ const mockLocalStorage = {
     setItem: jest.fn(),
     removeItem: jest.fn(),
 };
-Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+Object.defineProperty(window, 'sessionStorage', { value: { getItem: jest.fn() } });
 
 const fs = require('fs');
 const path = require('path');
@@ -17,11 +17,11 @@ eval(apiCode.replace('const API =', 'API ='));
 describe('API Client', () => {
     beforeEach(() => {
         clearMockResponses();
-        mockLocalStorage.getItem.mockReset();
+        window.sessionStorage.getItem.mockReset();
     });
 
     it('injects auth token into headers if present', async () => {
-        mockLocalStorage.getItem.mockReturnValue('test-token-123');
+        window.sessionStorage.getItem.mockReturnValue('test-token-123');
         setMockResponse('/auth/me', { success: true, data: { id: 1 } });
         
         await API.auth.me();

@@ -8,6 +8,9 @@ global.API = {
         submit: jest.fn().mockResolvedValue({}),
         approve: jest.fn().mockResolvedValue({}),
         reject: jest.fn().mockResolvedValue({})
+    },
+    runners: {
+        list: jest.fn().mockResolvedValue([{ id: 'r1', name: 'Runner 1', status: 'online' }])
     }
 };
 
@@ -44,10 +47,11 @@ describe('Commands Module', () => {
     it('submits command', async () => {
         await Commands.init();
         document.getElementById('cmd-input').value = 'ls -la';
+        document.getElementById('cmd-runner').value = 'r1';
         
         await Commands.submit();
         
-        expect(API.commands.submit).toHaveBeenCalledWith('ls -la');
+        expect(API.commands.submit).toHaveBeenCalledWith('ls -la', 'r1');
         expect(document.getElementById('cmd-input').value).toBe('');
     });
 

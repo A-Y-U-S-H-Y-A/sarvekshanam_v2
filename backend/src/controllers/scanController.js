@@ -84,10 +84,11 @@ exports.bulkScan = async (req, res, next) => {
   }
 };
 
-// POST /api/scans/search — list user's sessions
+// POST /api/scans/search or GET /api/scans — list user's sessions
 exports.listScans = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, status, appointmentId } = req.body;
+    const params = { ...req.query, ...req.body };
+    const { page = 1, limit = 20, status, appointmentId } = params;
     const svc    = getScanSessionService();
     const result = await svc.list(req.user.id, { page: parseInt(page, 10), limit: parseInt(limit, 10), status, appointmentId });
     res.json({ success: true, data: result });

@@ -1038,7 +1038,7 @@ class AIService {
         const len = Math.min(text.length, kwEnd + 64); // scan at most 64 chars past keyword
         while (i < len && /[\s:=,\-]/.test(text[i]) && !/\d/.test(text[i])) i++;
         if (i < len && /\d/.test(text[i])) {
-          const candidate = text.slice(i, i + 256);
+          const candidate = text.slice(i, i + 256).split(/\b(?:and|timing|with|for|T\d)\b/i)[0];
           const portNums = [...candidate.matchAll(/\d+/g)].map(m => m[0]).join(',');
           if (portNums) params.ports = portNums;
         }

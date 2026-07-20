@@ -7,6 +7,7 @@ const ctrl         = require('../controllers/scanController');
 // Order matters: /bulk must come before /:id
 router.post('/bulk', authenticate, ctrl.bulkScan);
 router.post('/',     authenticate, ctrl.createScan);
+router.get('/',      authenticate, ctrl.listScans);
 router.post('/search', authenticate, ctrl.listScans);
 router.get('/:id',   authenticate, ctrl.getScan);
 router.post('/:id/retry', authenticate, ctrl.retryScan);

@@ -22,11 +22,11 @@ func setupTestApp() *http.ServeMux {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", pingHandler)
-	mux.HandleFunc("/modules", authMiddleware(modulesHandler))
-	mux.HandleFunc("/modules/schema", authMiddleware(schemaHandler))
-	mux.HandleFunc("/run", authMiddleware(runHandler))
-	mux.HandleFunc("/run-bulk", authMiddleware(runBulkHandler))
-	mux.HandleFunc("/files/", authMiddleware(filesHandler))
+	mux.HandleFunc("/modules", modulesHandler)
+	mux.HandleFunc("/modules/schema", schemaHandler)
+	mux.HandleFunc("/run", runHandler)
+	mux.HandleFunc("/run-bulk", runBulkHandler)
+	mux.HandleFunc("/files/", filesHandler)
 	return mux
 }
 

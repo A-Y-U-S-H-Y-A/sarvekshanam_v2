@@ -64,8 +64,8 @@ test.describe('Authentication', () => {
     // Overlay should hide after successful login
     await expect(page.locator('#auth-overlay')).toBeHidden();
 
-    // Check if token is in localStorage
-    const token = await page.evaluate(() => localStorage.getItem('sarv_token'));
+    // Check if token is in sessionStorage
+    const token = await page.evaluate(() => sessionStorage.getItem('sarv_token'));
     expect(token).toBe('mock-token');
   });
 
@@ -91,8 +91,8 @@ test.describe('Authentication', () => {
     // Overlay should hide because token is found and /auth/me succeeds
     await expect(page.locator('#auth-overlay')).toBeHidden();
 
-    // Token should be in localStorage
-    const token = await page.evaluate(() => localStorage.getItem('sarv_token'));
+    // Token should be in sessionStorage
+    const token = await page.evaluate(() => sessionStorage.getItem('sarv_token'));
     expect(token).toBe('sso-mock-token');
   });
 });

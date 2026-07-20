@@ -18,7 +18,7 @@ test.describe('Settings', () => {
     expect(proxyMode).toBe('none');
 
     // Change proxy mode to hop
-    await page.selectOption('#setting-proxy-mode', 'hop');
+    await page.selectOption('#setting-proxy-mode', 'hop', { force: true });
 
     // Proxy target input should appear
     await expect(page.locator('#proxy-target-group')).toBeVisible();

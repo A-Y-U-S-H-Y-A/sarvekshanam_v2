@@ -115,7 +115,7 @@ async function mockAllAPIs(page) {
 /** Navigate to app with a pre-seeded token so we start logged in */
 async function loginAndGoto(page, path = '/') {
   await page.goto(path);
-  await page.evaluate(() => localStorage.setItem('sarv_token', 'e2e-token'));
+  await page.evaluate(() => sessionStorage.setItem('sarv_token', 'e2e-token'));
   await page.reload();
   await expect(page.locator('#auth-overlay')).toBeHidden();
 }

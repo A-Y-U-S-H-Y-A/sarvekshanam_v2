@@ -51,7 +51,7 @@ test.describe('Main Workflow', () => {
   test('complete flow: login -> power user scan -> ai chat', async ({ page }) => {
     // Seed token so we start logged in
     await page.goto('/');
-    await page.evaluate(() => localStorage.setItem('sarv_token', 'workflow-token'));
+    await page.evaluate(() => sessionStorage.setItem('sarv_token', 'workflow-token'));
     await page.reload();
 
     // Wait for app to load and overlay to be hidden

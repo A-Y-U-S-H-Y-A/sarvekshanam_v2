@@ -19,6 +19,7 @@ test.describe('Commands', () => {
 
     // Submit a new command
     await page.fill('#cmd-input', 'nmap -sV 10.0.0.1');
+    await page.selectOption('#cmd-runner', 'r1', { force: true });
     await page.click('#panel-cmd button:has-text("Submit")');
 
     // Wait for toast to confirm submission

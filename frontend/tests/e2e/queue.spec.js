@@ -45,7 +45,7 @@ test.describe('Queue WebSocket Status', () => {
 
     // Navigate to app
     await page.goto('/');
-    await page.evaluate(() => localStorage.setItem('sarv_token', 'test-token'));
+    await page.evaluate(() => sessionStorage.setItem('sarv_token', 'test-token'));
     await page.reload();
 
     // Wait for app to load

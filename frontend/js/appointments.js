@@ -103,7 +103,7 @@ const Appointments = (() => {
     if (!sel) return;
     
     sel.innerHTML = _appointments.map(a => 
-      `<option value="${_escHtml(a.id)}">${_escHtml(a.name)}</option>`
+      `<option value="${Utils.escHtml(a.id)}">${Utils.escHtml(a.name)}</option>`
     ).join('');
     
     if (_activeId) {
@@ -123,8 +123,8 @@ const Appointments = (() => {
     listEl.innerHTML = _appointments.map(a => `
       <div class="appointment-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-          <span class="appt-name">${_escHtml(a.name)}</span>
-          <span class="status-badge">${_escHtml(a.mode)}</span>
+          <span class="appt-name">${Utils.escHtml(a.name)}</span>
+          <span class="status-badge">${Utils.escHtml(a.mode)}</span>
         </div>
         <div class="appt-meta">
           <span>📅 ${_relTime(a.createdAt)}</span>
@@ -183,7 +183,7 @@ const Appointments = (() => {
       } else {
         chatsList.innerHTML = chats.map(c => `
           <div style="padding:10px 12px;border:1px solid var(--border);background:var(--bg-3);margin-bottom:6px;display:flex;flex-direction:column;gap:6px;">
-            <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--fg-2);">${_escHtml(c.provider)} — ${_escHtml(c.model)}</div>
+            <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--fg-2);">${Utils.escHtml(c.provider)} — ${Utils.escHtml(c.model)}</div>
             <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);">${_relTime(c.createdAt)}</div>
           </div>
         `).join('');
@@ -197,14 +197,11 @@ const Appointments = (() => {
     document.getElementById('appointment-detail').classList.add('hidden');
   }
 
-  function _escHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  
 
   function _escInline(str) {
     if (!str) return '';
-    return _escHtml(str)
+    return Utils.escHtml(str)
       .replace(/\\/g, '\\\\')
       .replace(/'/g, '\\\'')
       .replace(/\n/g, '\\n')

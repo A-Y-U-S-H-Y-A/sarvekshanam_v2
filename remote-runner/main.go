@@ -41,19 +41,20 @@ type ModuleConfig struct {
 	Parameters             []ModuleParameter `json:"parameters"`
 }
 
-type RunRequest struct {
+type BaseRunRequest struct {
 	Module        string   `json:"module"`
 	Args          []string `json:"args"`
 	EncryptedArgs string   `json:"encrypted_args"`
 	ProxyConfig   string   `json:"proxy_config,omitempty"`
 }
 
+type RunRequest struct {
+	BaseRunRequest
+}
+
 type RunBulkRequest struct {
-	Module        string   `json:"module"`
-	Targets       []string `json:"targets"`
-	Args          []string `json:"args"`
-	EncryptedArgs string   `json:"encrypted_args"`
-	ProxyConfig   string   `json:"proxy_config,omitempty"`
+	BaseRunRequest
+	Targets []string `json:"targets"`
 }
 
 var (

@@ -87,24 +87,24 @@ const Commands = (() => {
     }
 
     const outputHtml = c.output
-      ? `<div style="margin-top:10px;background:var(--bg-3);padding:10px 12px;border:1px solid var(--border);font-family:var(--font-mono);font-size:0.72rem;white-space:pre-wrap;overflow:auto;max-height:160px;color:var(--fg-2);">${_escHtml(c.output)}</div>`
+      ? `<div style="margin-top:10px;background:var(--bg-3);padding:10px 12px;border:1px solid var(--border);font-family:var(--font-mono);font-size:0.72rem;white-space:pre-wrap;overflow:auto;max-height:160px;color:var(--fg-2);">${Utils.escHtml(c.output)}</div>`
       : c.error
-      ? `<div style="margin-top:10px;background:var(--red-dim);padding:10px 12px;border:1px solid var(--red);font-family:var(--font-mono);font-size:0.72rem;white-space:pre-wrap;overflow:auto;max-height:160px;color:var(--red);">[Error] ${_escHtml(c.error)}</div>`
+      ? `<div style="margin-top:10px;background:var(--red-dim);padding:10px 12px;border:1px solid var(--red);font-family:var(--font-mono);font-size:0.72rem;white-space:pre-wrap;overflow:auto;max-height:160px;color:var(--red);">[Error] ${Utils.escHtml(c.error)}</div>`
       : '';
 
-    const reasonHtml = c.reason ? `<div style="margin-top:6px;font-family:var(--font-mono);font-size:0.65rem;color:var(--amber);border-left:2px solid var(--amber);padding-left:8px;">Reason: ${_escHtml(c.reason)}</div>` : '';
+    const reasonHtml = c.reason ? `<div style="margin-top:6px;font-family:var(--font-mono);font-size:0.65rem;color:var(--amber);border-left:2px solid var(--amber);padding-left:8px;">Reason: ${Utils.escHtml(c.reason)}</div>` : '';
 
     return `
       <div class="cmd-item">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span class="text-lg">${statusIcon}</span>
-            <span class="cmd-command" style="margin:0;" title="${_escHtml(c.command)}">${_escHtml(c.command)}</span>
+            <span class="cmd-command" style="margin:0;" title="${Utils.escHtml(c.command)}">${Utils.escHtml(c.command)}</span>
             <span class="status-badge status-${c.status}">${c.status}</span>
           </div>
           <span class="cmd-meta">${_relTime(c.requestedAt)}</span>
         </div>
-        <div class="cmd-meta">by ${_escHtml(c.username)}${c.resolvedBy ? ` · resolved by ${_escHtml(c.resolvedBy)}` : ''}</div>
+        <div class="cmd-meta">by ${Utils.escHtml(c.username)}${c.resolvedBy ? ` · resolved by ${Utils.escHtml(c.resolvedBy)}` : ''}</div>
         ${reasonHtml}
         ${actions}
         ${outputHtml}
@@ -138,10 +138,7 @@ const Commands = (() => {
     }
   }
 
-  function _escHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  
 
   function _relTime(iso) {
     if (!iso) return '';

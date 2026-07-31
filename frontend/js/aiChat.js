@@ -306,7 +306,7 @@ const AIChat = (() => {
       const title = chat.title || chat.id.split('-')[0] + '...';
       html += `
         <div class="chat-history-item ${activeCls}" onclick="AIChat.loadChat('${chat.id}')">
-          <div class="chat-history-item-title">${_escHtml(title)}</div>
+          <div class="chat-history-item-title">${Utils.escHtml(title)}</div>
         </div>
       `;
     }
@@ -557,15 +557,15 @@ const AIChat = (() => {
                </div>
                <div class="field-group" style="margin-bottom: 12px;">
                  <label class="input-label" style="font-family:var(--font-mono); font-size:0.65rem;">TARGET</label>
-                 <div class="input" style="background:var(--bg-1); cursor:not-allowed; border-color:var(--bg-2);">${_escHtml(runScanTool.args.target)}</div>
+                 <div class="input" style="background:var(--bg-1); cursor:not-allowed; border-color:var(--bg-2);">${Utils.escHtml(runScanTool.args.target)}</div>
                </div>
              `;
              if (runScanTool.args.params && Object.keys(runScanTool.args.params).length > 0) {
                 html += `<div class="field-group"><label class="input-label" style="font-family:var(--font-mono); font-size:0.65rem;">PARAMETERS</label>`;
                 for (const [k, v] of Object.entries(runScanTool.args.params)) {
                    html += `<div style="display:flex; justify-content:space-between; padding:6px 8px; border-bottom:1px solid var(--border); background:var(--bg-1); border-radius:4px; margin-bottom:4px;">
-                              <span style="color:var(--fg-3); font-family:var(--font-mono); font-size:0.75rem; font-weight:bold;">${_escHtml(k)}</span>
-                              <span style="font-family:var(--font-mono); font-size:0.75rem;">${_escHtml(String(v))}</span>
+                              <span style="color:var(--fg-3); font-family:var(--font-mono); font-size:0.75rem; font-weight:bold;">${Utils.escHtml(k)}</span>
+                              <span style="font-family:var(--font-mono); font-size:0.75rem;">${Utils.escHtml(String(v))}</span>
                             </div>`;
                 }
                 html += `</div>`;
@@ -574,13 +574,13 @@ const AIChat = (() => {
              detailsEl.style.whiteSpace = 'normal';
              detailsEl.style.fontFamily = 'var(--font-sans)';
           } else {
-             detailsEl.innerHTML = `<pre style="margin:0; font-family:var(--font-mono); font-size:0.75rem; white-space:pre-wrap;">${_escHtml(JSON.stringify(toolCalls, null, 2))}</pre>`;
+             detailsEl.innerHTML = `<pre style="margin:0; font-family:var(--font-mono); font-size:0.75rem; white-space:pre-wrap;">${Utils.escHtml(JSON.stringify(toolCalls, null, 2))}</pre>`;
           }
       } else {
-        detailsEl.innerHTML = `<pre style="margin:0; font-family:var(--font-mono); font-size:0.75rem; white-space:pre-wrap;">${_escHtml(JSON.stringify(toolCalls, null, 2))}</pre>`;
+        detailsEl.innerHTML = `<pre style="margin:0; font-family:var(--font-mono); font-size:0.75rem; white-space:pre-wrap;">${Utils.escHtml(JSON.stringify(toolCalls, null, 2))}</pre>`;
       }
     } catch (e) {
-      detailsEl.innerHTML = `<pre style="margin:0; font-family:var(--font-mono); font-size:0.75rem; white-space:pre-wrap;">${_escHtml(JSON.stringify(toolCalls, null, 2))}</pre>`;
+      detailsEl.innerHTML = `<pre style="margin:0; font-family:var(--font-mono); font-size:0.75rem; white-space:pre-wrap;">${Utils.escHtml(JSON.stringify(toolCalls, null, 2))}</pre>`;
     } finally {
       btnAllow.disabled = false;
       btnDeny.disabled = false;
@@ -639,7 +639,7 @@ const AIChat = (() => {
       ? (Auth.getUser()?.username?.[0] || 'U').toUpperCase()
       : '🤖';
 
-    const finalContent = role === 'assistant' ? _renderContent(content) : _escHtml(content).replace(/\n/g, '<br>');
+    const finalContent = role === 'assistant' ? _renderContent(content) : Utils.escHtml(content).replace(/\n/g, '<br>');
 
     div.innerHTML = `
       <div class="bubble-meta"><div class="bubble-meta-icon">${avatarChar}</div><span>${role === 'assistant' ? 'AI Assistant' : 'You'}</span></div>
@@ -650,9 +650,7 @@ const AIChat = (() => {
     return div;
   }
 
-  function _escHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  
 
   /** Render streamed AI content into styled HTML with tool-call action cards */
   function _renderContent(raw) {
@@ -672,8 +670,8 @@ const AIChat = (() => {
           html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;">`;
           inToolGroup = true;
         }
-        const toolName = _escHtml(toolMatch[1]);
-        const extra = _escHtml(toolMatch[2] || '');
+        const toolName = Utils.escHtml(toolMatch[1]);
+        const extra = Utils.escHtml(toolMatch[2] || '');
         html += `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:var(--amber-glow);border:1px solid var(--amber-dim);border-left:3px solid var(--amber);font-size:0.75rem;border-radius:4px;"><span style="font-family:var(--font-mono);font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--amber);">${toolName}</span>${extra ? `<span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);font-style:italic;">${extra}</span>` : ''}</div>`;
         continue;
       }
@@ -689,7 +687,7 @@ const AIChat = (() => {
       }
 
       // Normal line — basic markdown
-      let safe = _escHtml(line);
+      let safe = Utils.escHtml(line);
       safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       safe = safe.replace(/`(.+?)`/g, '<code>$1</code>');
       html += safe + (i < lines.length - 1 ? '<br>' : '');
@@ -740,22 +738,22 @@ const AIChat = (() => {
       }
 
       listEl.innerHTML = results.map(r => {
-        const text = _escHtml((r.content || '').substring(0, 150)) + ((r.content || '').length > 150 ? '...' : '');
+        const text = Utils.escHtml((r.content || '').substring(0, 150)) + ((r.content || '').length > 150 ? '...' : '');
         const rawScore = Number.isFinite(r.score) ? r.score : 0;
         const score = (Math.max(0, Math.min(1, rawScore)) * 100).toFixed(1);
         return `
           <div style="padding:10px 12px;border:1px solid var(--border);background:var(--bg-2);display:flex;flex-direction:column;gap:6px;">
             <div class="flex justify-between items-center">
-              <span class="font-bold text-xs uppercase tracking-[0.1em]" style="font-family:var(--font-mono);">${_escHtml(r.docId)}</span>
+              <span class="font-bold text-xs uppercase tracking-[0.1em]" style="font-family:var(--font-mono);">${Utils.escHtml(r.docId)}</span>
               <span style="background:var(--amber);color:var(--bg);font-family:var(--font-mono);font-size:0.65rem;font-weight:700;padding:1px 6px;">${score}%</span>
             </div>
             <div style="font-size:0.75rem;color:var(--fg-3);overflow:hidden;text-overflow:ellipsis;font-style:italic;">${text}</div>
-            <button class="btn btn-ghost btn-sm" style="align-self:flex-start;" onclick="AIChat.attachRagResult(this)" data-rag-text="${_escHtml(r.content || '').replace(/"/g, '&quot;')}">📎 Attach to Context</button>
+            <button class="btn btn-ghost btn-sm" style="align-self:flex-start;" onclick="AIChat.attachRagResult(this)" data-rag-text="${Utils.escHtml(r.content || '').replace(/"/g, '&quot;')}">📎 Attach to Context</button>
           </div>
         `;
       }).join('');
     } catch (err) {
-      listEl.innerHTML = `<p style="padding:12px;font-family:var(--font-mono);font-size:0.72rem;color:var(--red);">Search failed: ${_escHtml(String(err && err.message ? err.message : err))}</p>`;
+      listEl.innerHTML = `<p style="padding:12px;font-family:var(--font-mono);font-size:0.72rem;color:var(--red);">Search failed: ${Utils.escHtml(String(err && err.message ? err.message : err))}</p>`;
     }
   }
 

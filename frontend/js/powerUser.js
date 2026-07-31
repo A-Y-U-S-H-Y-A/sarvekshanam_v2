@@ -7,15 +7,7 @@ const PowerUser = (() => {
   let _activeModule  = null;   // meta object
   let _activeSession = null;   // latest session ID for AI attachment
 
-  function _escHtml(str) {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+  
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -42,7 +34,7 @@ const PowerUser = (() => {
       if (select) {
         const val = select.value;
         select.innerHTML = '<option value="">Auto (Queue)</option>' + 
-          data.map(r => `<option value="${_escHtml(r.id)}">${_escHtml(r.name)} (${_escHtml(r.status)})</option>`).join('');
+          data.map(r => `<option value="${Utils.escHtml(r.id)}">${Utils.escHtml(r.name)} (${Utils.escHtml(r.status)})</option>`).join('');
         if (val) select.value = val;
       }
     } catch(e) {
@@ -59,7 +51,7 @@ const PowerUser = (() => {
       _categories = data.categories || {};
       renderTree(_categories);
     } catch (err) {
-      tree.innerHTML = `<p style="padding:12px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);">Failed to load modules:<br/>${_escHtml(err.message)}</p>`;
+      tree.innerHTML = `<p style="padding:12px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);">Failed to load modules:<br/>${Utils.escHtml(err.message)}</p>`;
     }
   }
 
@@ -86,13 +78,13 @@ const PowerUser = (() => {
       
       catEl.innerHTML = `
         <div class="category-header" onclick="PowerUser._toggleCategory(this)">
-          ${_escHtml(cat)}
+          ${Utils.escHtml(cat)}
           <span class="category-arrow" style="${isCollapsed ? 'transform: rotate(-90deg);' : ''}">▾</span></div>
         <div class="category-modules ${isCollapsed ? 'collapsed' : ''}" id="${catId}">
           ${mods.map(m => `
-            <div class="module-item" id="mod-item-${_escHtml(m.id)}" onclick="PowerUser.selectModule('${_escHtml(m.id)}')" title="${_escHtml(m.description)}">
+            <div class="module-item" id="mod-item-${Utils.escHtml(m.id)}" onclick="PowerUser.selectModule('${Utils.escHtml(m.id)}')" title="${Utils.escHtml(m.description)}">
               <span class="mod-dot"></span>
-              <span>${_escHtml(m.name)}</span>
+              <span>${Utils.escHtml(m.name)}</span>
             </div>
           `).join('')}
         </div>
@@ -150,18 +142,18 @@ const PowerUser = (() => {
     const paramContainer = document.getElementById('module-params');
     paramContainer.innerHTML = meta.parameters.map(p => `
       <div class="param-field">
-        <label for="param-${_escHtml(p.name)}" >${_escHtml(p.name)}${p.required ? ' *' : ''}</label>
+        <label for="param-${Utils.escHtml(p.name)}" >${Utils.escHtml(p.name)}${p.required ? ' *' : ''}</label>
         ${p.type === 'select'
-          ? `<select id="param-${_escHtml(p.name)}" class="select-styled" style="width:100%;">
-               ${p.options.map(o => `<option value="${_escHtml(o)}">${_escHtml(o)}</option>`).join('')}
+          ? `<select id="param-${Utils.escHtml(p.name)}" class="select-styled" style="width:100%;">
+               ${p.options.map(o => `<option value="${Utils.escHtml(o)}">${Utils.escHtml(o)}</option>`).join('')}
              </select>`
-          : `<input id="param-${_escHtml(p.name)}" type="text"
+          : `<input id="param-${Utils.escHtml(p.name)}" type="text"
                class="input"
-               value="${_escHtml(p.default || '')}"
-               placeholder="${_escHtml(p.placeholder || p.description || '')}"
+               value="${Utils.escHtml(p.default || '')}"
+               placeholder="${Utils.escHtml(p.placeholder || p.description || '')}"
                ${p.required ? 'required' : ''} />`
         }
-        <span style="display:block;margin-top:4px;font-family:var(--font-mono);font-size:0.62rem;color:var(--fg-4);font-style:italic;">${_escHtml(p.description)}</span>
+        <span style="display:block;margin-top:4px;font-family:var(--font-mono);font-size:0.62rem;color:var(--fg-4);font-style:italic;">${Utils.escHtml(p.description)}</span>
       </div>
     `).join('');
   }

@@ -1,13 +1,16 @@
 'use strict';
 
+const { sendSuccess, sendError, sendNotFound, sendForbidden } = require('../utils/responseHelper');
+
+const asyncHandler = require('../utils/asyncHandler');
+
 const crypto    = require('crypto');
 const bcrypt    = require('bcryptjs');
 const config    = require('../config');
 const { getDb } = require('../db/database');
 
 // POST /api/keys — Generate a new API key
-exports.create = async (req, res, next) => {
-  try {
+exports.create = asyncHandler(async (req, res, next) => {
     const { name = 'Untitled Key', scopes = ['*'] } = req.body;
     const userId = req.user.id;
 
@@ -36,14 +39,10 @@ exports.create = async (req, res, next) => {
         created_at: new Date().toISOString(),
       },
     });
-  } catch (err) {
-    next(err);
-  }
-};
+  });
 
 // GET /api/keys — List user's API keys
-exports.list = async (req, res, next) => {
-  try {
+exports.list = asyncHandler(async (req, res, next) => {
     const { ApiKey } = getDb();
     const keys = await ApiKey.findAll({
       where: { user_id: req.user.id },
@@ -62,34 +61,27 @@ exports.list = async (req, res, next) => {
         revoked_at:   k.revoked_at,
       })),
     });
-  } catch (err) {
-    next(err);
-  }
-};
+  });
 
 // DELETE /api/keys/:id — Revoke an API key
-exports.revoke = async (req, res, next) => {
-  try {
+exports.revoke = asyncHandler(async (req, res, next) => {
     const { ApiKey } = getDb();
     const key = await ApiKey.findByPk(req.params.id);
 
     if (!key) {
-      return res.status(404).json({ success: false, error: { message: 'API key not found' } });
+      return sendNotFound(res, 'API key not found');
     }
 
     // Only the owner or an admin can revoke
     if (key.user_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: { message: 'Not authorized to revoke this key' } });
+      return sendForbidden(res, 'Not authorized to revoke this key');
     }
 
     if (key.revoked_at) {
-      return res.status(400).json({ success: false, error: { message: 'Key already revoked' } });
+      return sendError(res, 'Key already revoked');
     }
 
     await key.update({ revoked_at: new Date() });
 
-    return res.json({ success: true, data: { message: 'API key revoked' } });
-  } catch (err) {
-    next(err);
-  }
-};
+    return sendSuccess(res, { message: 'API key revoked' });
+  });

@@ -1,49 +1,41 @@
 'use strict';
 
+const { sendSuccess, sendError, sendNotFound, sendForbidden } = require('../utils/responseHelper');
+
+const asyncHandler = require('../utils/asyncHandler');
+
 const { getVectorService } = require('../services/vectorService');
 
 // POST /api/rag/search
-exports.search = async (req, res, next) => {
-  try {
+exports.search = asyncHandler(async (req, res, next) => {
     const { query, topK = 5 } = req.body;
     if (!query) {
-      return res.status(400).json({ success: false, error: { message: 'query is required' } });
+      return sendError(res, 'query is required');
     }
 
     const vectorService = getVectorService();
     const results = await vectorService.search(query, topK);
 
-    return res.json({ success: true, data: { results } });
-  } catch (err) {
-    next(err);
-  }
-};
+    return sendSuccess(res, { results });
+  });
 
 // POST /api/rag/ingest
-exports.ingest = async (req, res, next) => {
-  try {
+exports.ingest = asyncHandler(async (req, res, next) => {
     const { docId, text, chunkStrategy, maxTokens, overlap } = req.body;
     if (!docId || !text) {
-      return res.status(400).json({ success: false, error: { message: 'docId and text are required' } });
+      return sendError(res, 'docId and text are required');
     }
 
     const vectorService = getVectorService();
     const result = await vectorService.ingest(docId, text, { chunkStrategy, maxTokens, overlap });
 
-    return res.status(201).json({ success: true, data: result });
-  } catch (err) {
-    next(err);
-  }
-};
+    return sendSuccess(res, result, 201);
+  });
 
 // GET /api/rag/stats
-exports.stats = async (req, res, next) => {
-  try {
+exports.stats = asyncHandler(async (req, res, next) => {
     const vectorService = getVectorService();
     const stats = await vectorService.stats();
 
-    return res.json({ success: true, data: { stats } });
-  } catch (err) {
-    next(err);
-  }
-};
+    return sendSuccess(res, { stats });
+  });

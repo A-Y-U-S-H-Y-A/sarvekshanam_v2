@@ -1,10 +1,13 @@
 'use strict';
 
+const { sendSuccess, sendError, sendNotFound, sendForbidden } = require('../utils/responseHelper');
+
+const asyncHandler = require('../utils/asyncHandler');
+
 const xlsx = require('xlsx');
 
 // POST /api/files/upload
-exports.uploadTargets = async (req, res, next) => {
-  try {
+exports.uploadTargets = asyncHandler(async (req, res, next) => {
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'No file uploaded' });
     }
@@ -49,14 +52,10 @@ exports.uploadTargets = async (req, res, next) => {
       }
     });
 
-  } catch (err) {
-    next(err);
-  }
-};
+  });
 
 // POST /api/files/download
-exports.downloadTargets = async (req, res, next) => {
-  try {
+exports.downloadTargets = asyncHandler(async (req, res, next) => {
     const { format = 'csv', entries = [] } = req.body;
     
     if (!Array.isArray(entries)) {
@@ -80,7 +79,4 @@ exports.downloadTargets = async (req, res, next) => {
     }
     
     res.send(buffer);
-  } catch (err) {
-    next(err);
-  }
-};
+  });

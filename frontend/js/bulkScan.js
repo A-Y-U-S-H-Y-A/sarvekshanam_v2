@@ -10,15 +10,7 @@ const BulkScan = (() => {
   let _currentPage = 1;
   const PAGE_SIZE = 10;
 
-  function _escHtml(str) {
-    if (str == null) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+  
 
   async function init() {
     await loadModuleCheckboxes();
@@ -38,7 +30,7 @@ const BulkScan = (() => {
       if (select) {
         const val = select.value;
         select.innerHTML = '<option value="">Auto (Queue)</option>' + 
-          data.map(r => `<option value="${_escHtml(r.id)}">${_escHtml(r.name)} (${_escHtml(r.status)})</option>`).join('');
+          data.map(r => `<option value="${Utils.escHtml(r.id)}">${Utils.escHtml(r.name)} (${Utils.escHtml(r.status)})</option>`).join('');
         if (val) select.value = val;
       }
     } catch(e) {
@@ -57,10 +49,10 @@ const BulkScan = (() => {
       _allModules = all;
       container.innerHTML = all.map(m => `
         <div class="bulk-module-item" onclick="this.querySelector('input').click()">
-          <input type="checkbox" id="bulk-mod-${_escHtml(m.id)}" value="${_escHtml(m.id)}" onchange="BulkScan.updateCountBadge();BulkScan.renderParams()" style="accent-color:var(--amber);width:13px;height:13px;flex-shrink:0;cursor:pointer;" ${checked.includes(m.id) ? 'checked' : ''} />
-          <label for="bulk-mod-${_escHtml(m.id)}" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px;">
-            ${_escHtml(m.name)} 
-            <span style="font-size:0.62rem;color:var(--fg-4);font-style:italic;font-weight:400;">${_escHtml(m.category)}</span>
+          <input type="checkbox" id="bulk-mod-${Utils.escHtml(m.id)}" value="${Utils.escHtml(m.id)}" onchange="BulkScan.updateCountBadge();BulkScan.renderParams()" style="accent-color:var(--amber);width:13px;height:13px;flex-shrink:0;cursor:pointer;" ${checked.includes(m.id) ? 'checked' : ''} />
+          <label for="bulk-mod-${Utils.escHtml(m.id)}" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px;">
+            ${Utils.escHtml(m.name)} 
+            <span style="font-size:0.62rem;color:var(--fg-4);font-style:italic;font-weight:400;">${Utils.escHtml(m.category)}</span>
           </label>
         </div>
       `).join('');
@@ -124,14 +116,14 @@ const BulkScan = (() => {
     if (!section || !container) return;
 
     const headers = _uploadedFileData.headers;
-    const optionsHtml = `<option value="">-- None --</option>` + headers.map(h => `<option value="${_escHtml(h)}">${_escHtml(h)}</option>`).join('');
+    const optionsHtml = `<option value="">-- None --</option>` + headers.map(h => `<option value="${Utils.escHtml(h)}">${Utils.escHtml(h)}</option>`).join('');
 
     let html = `
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <label style="font-size:0.75rem;color:var(--fg-2);">Target / URI Field <span style="color:var(--accent-red)">*</span></label>
         <select id="map-col-target" class="select-styled" style="width:200px;font-size:0.75rem;">
           <option value="">-- Select Column --</option>
-          ${headers.map(h => `<option value="${_escHtml(h)}" ${h.toLowerCase().includes('target') || h.toLowerCase().includes('ip') || h.toLowerCase().includes('url') ? 'selected' : ''}>${_escHtml(h)}</option>`).join('')}
+          ${headers.map(h => `<option value="${Utils.escHtml(h)}" ${h.toLowerCase().includes('target') || h.toLowerCase().includes('ip') || h.toLowerCase().includes('url') ? 'selected' : ''}>${Utils.escHtml(h)}</option>`).join('')}
         </select>
       </div>
     `;
@@ -150,8 +142,8 @@ const BulkScan = (() => {
     for (const [name, p] of uniqueParams.entries()) {
       html += `
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <label style="font-size:0.75rem;color:var(--fg-2);">Param: ${_escHtml(name)}</label>
-          <select class="select-styled map-col-param" data-param-name="${_escHtml(name)}" style="width:200px;font-size:0.75rem;">
+          <label style="font-size:0.75rem;color:var(--fg-2);">Param: ${Utils.escHtml(name)}</label>
+          <select class="select-styled map-col-param" data-param-name="${Utils.escHtml(name)}" style="width:200px;font-size:0.75rem;">
             ${optionsHtml}
           </select>
         </div>
@@ -372,22 +364,22 @@ const BulkScan = (() => {
     let overallStatus = done === total ? 'completed' : running > 0 ? 'running' : 'pending';
 
     return `
-      <div class="bulk-progress-item" id="bulk-group-${_escHtml(gId)}" style="cursor:pointer;" onclick="BulkScan.showGroupDetails('${_escHtml(gId)}')">
+      <div class="bulk-progress-item" id="bulk-group-${Utils.escHtml(gId)}" style="cursor:pointer;" onclick="BulkScan.showGroupDetails('${Utils.escHtml(gId)}')">
         <div class="bulk-progress-header">
-          <span class="bulk-progress-name">📁 ${_escHtml(baseName)} <span style="font-size:0.75rem;color:var(--fg-4);font-weight:normal;">(${total} targets)</span></span>
+          <span class="bulk-progress-name">📁 ${Utils.escHtml(baseName)} <span style="font-size:0.75rem;color:var(--fg-4);font-weight:normal;">(${total} targets)</span></span>
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span class="status-badge status-${overallStatus}">${overallStatus}</span>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportGroup('${_escHtml(gId)}', 'json-zip')" title="Export JSON Zip">⬇️ Zip</button>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportGroup('${_escHtml(gId)}', 'csv')" title="Export CSV">⬇️ CSV</button>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportGroup('${_escHtml(gId)}', 'xlsx')" title="Export Excel">⬇️ Excel</button>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); BulkScan.attachGroupToAI('${_escHtml(gId)}')">📎</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportGroup('${Utils.escHtml(gId)}', 'json-zip')" title="Export JSON Zip">⬇️ Zip</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportGroup('${Utils.escHtml(gId)}', 'csv')" title="Export CSV">⬇️ CSV</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportGroup('${Utils.escHtml(gId)}', 'xlsx')" title="Export Excel">⬇️ Excel</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); BulkScan.attachGroupToAI('${Utils.escHtml(gId)}')">📎</button>
           </div>
         </div>
         <div class="bulk-progress-bar-wrap">
-          <div class="bulk-progress-bar-fill" id="group-bar-${_escHtml(gId)}" style="width:${pct}%;${barColor ? 'background:'+barColor : ''}"></div>
+          <div class="bulk-progress-bar-fill" id="group-bar-${Utils.escHtml(gId)}" style="width:${pct}%;${barColor ? 'background:'+barColor : ''}"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);">
-          <span id="group-stats-${_escHtml(gId)}">${done} / ${total} finished</span>
+          <span id="group-stats-${Utils.escHtml(gId)}">${done} / ${total} finished</span>
           <span>${_relTime(sessions[0].createdAt)}</span>
         </div>
       </div>
@@ -399,38 +391,38 @@ const BulkScan = (() => {
     const barColor = s.status === 'failed' ? 'var(--accent-red)' : '';
     
     let extras = '';
-    if (s.runner_name) extras += `<span class="status-badge">🏃 ${_escHtml(s.runner_name)}</span>`;
-    if (s.retry_count > 0) extras += `<span class="status-badge">Retry ${_escHtml(s.retry_count)}</span>`;
-    if (s.queue_position > 0) extras += `<span class="status-badge">Queue: #${_escHtml(s.queue_position)}</span>`;
+    if (s.runner_name) extras += `<span class="status-badge">🏃 ${Utils.escHtml(s.runner_name)}</span>`;
+    if (s.retry_count > 0) extras += `<span class="status-badge">Retry ${Utils.escHtml(s.retry_count)}</span>`;
+    if (s.queue_position > 0) extras += `<span class="status-badge">Queue: #${Utils.escHtml(s.queue_position)}</span>`;
     
     let relaunchBtn = '';
     if (s.status === 'failed_permanent' && options.allowRelaunch) {
-      relaunchBtn = `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); PowerUser.relaunch('${_escHtml(s.id)}')">↻</button>`;
+      relaunchBtn = `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); PowerUser.relaunch('${Utils.escHtml(s.id)}')">↻</button>`;
     }
 
     const sessName = s.name || s.targets?.[0] || '—';
     const attachName = (s.name || s.id).replace(/'/g,'');
     
-    const clickAttr = options.onClickItem ? `onclick="${options.onClickItem}('${_escHtml(s.id)}'); event.stopPropagation()"` : `onclick="event.stopPropagation()"`;
+    const clickAttr = options.onClickItem ? `onclick="${options.onClickItem}('${Utils.escHtml(s.id)}'); event.stopPropagation()"` : `onclick="event.stopPropagation()"`;
     const cursor = options.onClickItem ? 'cursor:pointer;' : 'cursor:default;';
 
     return `
-      <div class="bulk-progress-item" id="bulk-sess-${_escHtml(s.id)}" style="${cursor}" ${clickAttr}>
+      <div class="bulk-progress-item" id="bulk-sess-${Utils.escHtml(s.id)}" style="${cursor}" ${clickAttr}>
         <div class="bulk-progress-header">
-          <span class="bulk-progress-name">${_escHtml(sessName)}</span>
+          <span class="bulk-progress-name">${Utils.escHtml(sessName)}</span>
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             ${extras}
             ${relaunchBtn}
-            <span class="status-badge status-${_escHtml(s.status)}">${_escHtml(s.status)}</span>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportScan('${_escHtml(s.id)}')" title="Export JSON">⬇️ JSON</button>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); PowerUser.attachSession('${_escHtml(s.id)}','${_escHtml(attachName)}')">📎</button>
+            <span class="status-badge status-${Utils.escHtml(s.status)}">${Utils.escHtml(s.status)}</span>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportScan('${Utils.escHtml(s.id)}')" title="Export JSON">⬇️ JSON</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); PowerUser.attachSession('${Utils.escHtml(s.id)}','${Utils.escHtml(attachName)}')">📎</button>
           </div>
         </div>
         <div class="bulk-progress-bar-wrap">
-          <div class="bulk-progress-bar-fill" id="bar-${_escHtml(s.id)}" style="width:${pct}%;${barColor ? 'background:'+barColor : ''}"></div>
+          <div class="bulk-progress-bar-fill" id="bar-${Utils.escHtml(s.id)}" style="width:${pct}%;${barColor ? 'background:'+barColor : ''}"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);">
-          <span>${_escHtml(s.moduleIds?.join(', '))}</span>
+          <span>${Utils.escHtml(s.moduleIds?.join(', '))}</span>
           <span>${_relTime(s.createdAt)}</span>
         </div>
       </div>
@@ -628,8 +620,8 @@ const BulkScan = (() => {
       for (const [name, p] of uniqueParams.entries()) {
         html += `
           <div class="field-group" style="margin:0;">
-            <label class="input-label">${_escHtml(p.name)} ${p.required ? '<span style="color:var(--accent-red)">*</span>' : ''}</label>
-            <input type="${p.type === 'number' ? 'number' : 'text'}" class="input bulk-param-input" data-param-name="${_escHtml(p.name)}" placeholder="${_escHtml(p.description || '')}" />
+            <label class="input-label">${Utils.escHtml(p.name)} ${p.required ? '<span style="color:var(--accent-red)">*</span>' : ''}</label>
+            <input type="${p.type === 'number' ? 'number' : 'text'}" class="input bulk-param-input" data-param-name="${Utils.escHtml(p.name)}" placeholder="${Utils.escHtml(p.description || '')}" />
           </div>
         `;
       }
@@ -637,12 +629,12 @@ const BulkScan = (() => {
       modules.forEach(m => {
         const params = (m.parameters || []).filter(p => p.name !== 'target');
         if (!params.length) return;
-        html += `<div style="font-weight:600;font-size:0.8rem;color:var(--amber);margin-top:4px;">${_escHtml(m.name)}</div>`;
+        html += `<div style="font-weight:600;font-size:0.8rem;color:var(--amber);margin-top:4px;">${Utils.escHtml(m.name)}</div>`;
         params.forEach(p => {
           html += `
             <div class="field-group" style="margin:0 0 0 8px;">
-              <label class="input-label">${_escHtml(p.name)} ${p.required ? '<span style="color:var(--accent-red)">*</span>' : ''}</label>
-              <input type="${p.type === 'number' ? 'number' : 'text'}" class="input bulk-param-input" data-module-id="${_escHtml(m.id)}" data-param-name="${_escHtml(p.name)}" placeholder="${_escHtml(p.description || '')}" />
+              <label class="input-label">${Utils.escHtml(p.name)} ${p.required ? '<span style="color:var(--accent-red)">*</span>' : ''}</label>
+              <input type="${p.type === 'number' ? 'number' : 'text'}" class="input bulk-param-input" data-module-id="${Utils.escHtml(m.id)}" data-param-name="${Utils.escHtml(p.name)}" placeholder="${Utils.escHtml(p.description || '')}" />
             </div>
           `;
         });

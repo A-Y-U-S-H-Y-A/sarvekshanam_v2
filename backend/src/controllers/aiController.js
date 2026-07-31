@@ -1,18 +1,21 @@
 'use strict';
 
+const { sendSuccess, sendError, sendNotFound, sendForbidden } = require('../utils/responseHelper');
+
+const asyncHandler = require('../utils/asyncHandler');
+
 const { getAIService }          = require('../services/aiService');
 const { getScanSessionService } = require('../services/scanSessionService');
 
 // POST /api/ai/chat — streaming SSE response
-exports.chat = async (req, res, next) => {
-  try {
+exports.chat = asyncHandler(async (req, res, next) => {
     const { provider = 'groq', model, messages, sessionIds, appointmentId } = req.body;
 
     if (!messages?.length) {
-      return res.status(400).json({ success: false, error: { message: 'messages array is required' } });
+      return sendError(res, 'messages array is required');
     }
     if (!appointmentId) {
-      return res.status(400).json({ success: false, error: { message: 'appointmentId is required' } });
+      return sendError(res, 'appointmentId is required');
     }
 
     // Build session context if sessionIds provided
@@ -101,11 +104,8 @@ exports.listProviders = async (req, res, next) => {
   try {
     const ai        = getAIService();
     const providers = await ai.listProviders();
-    res.json({ success: true, data: { providers } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, { providers });
+  });
 
 const PROVIDER_PACKAGES = {
   groq:       { install: '@langchain/groq',                uninstall: '@langchain/groq' },
@@ -118,14 +118,13 @@ const PROVIDER_PACKAGES = {
 };
 
 // POST /api/ai/packages/install
-exports.installPackage = async (req, res, next) => {
-  try {
+exports.installPackage = asyncHandler(async (req, res, next) => {
     const { providerId } = req.body;
-    if (!providerId) return res.status(400).json({ success: false, error: { message: 'providerId required' } });
+    if (!providerId) return sendError(res, 'providerId required');
     
     const pkg = PROVIDER_PACKAGES[providerId];
     if (!pkg) {
-      return res.status(400).json({ success: false, error: { message: 'Invalid or unsupported providerId for installation.' } });
+      return sendError(res, 'Invalid or unsupported providerId for installation.');
     }
 
     const { execFile } = require('child_process');
@@ -135,22 +134,18 @@ exports.installPackage = async (req, res, next) => {
       if (error) {
         return res.status(500).json({ success: false, error: { message: error.message } });
       }
-      res.json({ success: true, data: { message: 'Package installed successfully' } });
+      sendSuccess(res, { message: 'Package installed successfully' });
     });
-  } catch (err) {
-    next(err);
-  }
-};
+  });
 
 // POST /api/ai/packages/uninstall
-exports.uninstallPackage = async (req, res, next) => {
-  try {
+exports.uninstallPackage = asyncHandler(async (req, res, next) => {
     const { providerId } = req.body;
-    if (!providerId) return res.status(400).json({ success: false, error: { message: 'providerId required' } });
+    if (!providerId) return sendError(res, 'providerId required');
     
     const pkg = PROVIDER_PACKAGES[providerId];
     if (!pkg) {
-      return res.status(400).json({ success: false, error: { message: 'Invalid or unsupported providerId for uninstallation.' } });
+      return sendError(res, 'Invalid or unsupported providerId for uninstallation.');
     }
 
     const { execFile } = require('child_process');
@@ -160,51 +155,36 @@ exports.uninstallPackage = async (req, res, next) => {
       if (error) {
         return res.status(500).json({ success: false, error: { message: error.message } });
       }
-      res.json({ success: true, data: { message: 'Package removed successfully' } });
+      sendSuccess(res, { message: 'Package removed successfully' });
     });
-  } catch (err) {
-    next(err);
-  }
-};
+  });
 
 // POST /api/ai/models/fetch
-exports.fetchModels = async (req, res, next) => {
-  try {
+exports.fetchModels = asyncHandler(async (req, res, next) => {
     const { providerId } = req.body;
-    if (!providerId) return res.status(400).json({ success: false, error: { message: 'providerId required' } });
+    if (!providerId) return sendError(res, 'providerId required');
     
     const ai = getAIService();
     const models = await ai.fetchModelsFromAPI(providerId);
-    res.json({ success: true, data: { models } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, { models });
+  });
 
 // POST /api/ai/models/add
-exports.addModel = async (req, res, next) => {
-  try {
+exports.addModel = asyncHandler(async (req, res, next) => {
     const { providerId, model } = req.body;
-    if (!providerId || !model) return res.status(400).json({ success: false, error: { message: 'providerId and model required' } });
+    if (!providerId || !model) return sendError(res, 'providerId and model required');
     
     const aiModelsStore = require('../services/aiModelsStore');
     aiModelsStore.addModel(providerId, model);
-    res.json({ success: true, data: { message: 'Model added' } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, { message: 'Model added' });
+  });
 
 // POST /api/ai/models/remove
-exports.removeModel = async (req, res, next) => {
-  try {
+exports.removeModel = asyncHandler(async (req, res, next) => {
     const { providerId, model } = req.body;
-    if (!providerId || !model) return res.status(400).json({ success: false, error: { message: 'providerId and model required' } });
+    if (!providerId || !model) return sendError(res, 'providerId and model required');
     
     const aiModelsStore = require('../services/aiModelsStore');
     aiModelsStore.removeModel(providerId, model);
-    res.json({ success: true, data: { message: 'Model removed' } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, { message: 'Model removed' });
+  });

@@ -179,7 +179,7 @@ const App = (() => {
         <div class="api-key-item">
           <div>
             <div style="font-family:var(--font-mono);font-size:0.78rem;font-weight:600;display:flex;align-items:center;gap:8px;">
-              ${_escHtml(k.name)} 
+              ${Utils.escHtml(k.name)} 
               ${k.revoked_at ? '<span class="status-badge" style="background:var(--red-dim);color:var(--red);">Revoked</span>' : ''}
             </div>
             <div style="font-family:var(--font-mono);font-size:0.62rem;color:var(--fg-4);margin-top:3px;">
@@ -220,10 +220,7 @@ const App = (() => {
     }
   }
 
-  function _escHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  
 
   return { boot, onLogin, switchTab, toggleUserMenu, showSettings, hideSettings, saveSettings, onProxyModeChange, loadApiKeys, generateApiKey, revokeApiKey };
 })();

@@ -32,6 +32,18 @@ const API = (() => {
     return data.data;
   }
 
+  async function _downloadFileRoute(path, defaultFilename) {
+    const res = await fetch(`${BASE}${path}`, { headers: headers() });
+    if (!res.ok) throw new Error('Failed to export data');
+    const blob = await res.blob();
+    let filename = defaultFilename;
+    const disp = res.headers.get('content-disposition');
+    if (disp && disp.includes('filename=')) {
+      filename = disp.split('filename=')[1].replace(/"/g, '');
+    }
+    _downloadBlob(blob, filename);
+  }
+
   // ── Auth ──────────────────────────────────────────────────────────────────
   const auth = {
     register: (username, password) => request('POST', '/auth/register', { username, password }),
@@ -58,28 +70,8 @@ const API = (() => {
     retry:  (id) => request('POST', `/api/scans/${id}/retry`),
     approve:(id) => request('POST', `/api/scans/${id}/approve`),
     delete: (id) => request('DELETE', `/api/scans/${id}`),
-    exportScan: async (id) => {
-      const res = await fetch(`${BASE}/api/scans/${id}/export`, { headers: headers() });
-      if (!res.ok) throw new Error('Failed to export scan');
-      const blob = await res.blob();
-      let filename = `scan-${id}.json`;
-      const disp = res.headers.get('content-disposition');
-      if (disp && disp.includes('filename=')) {
-        filename = disp.split('filename=')[1].replace(/"/g, '');
-      }
-      _downloadBlob(blob, filename);
-    },
-    exportGroup: async (groupId, format) => {
-      const res = await fetch(`${BASE}/api/scans/export/group/${groupId}?format=${format}`, { headers: headers() });
-      if (!res.ok) throw new Error('Failed to export group');
-      const blob = await res.blob();
-      let filename = `group-${groupId}.${format === 'json-zip' ? 'zip' : format}`;
-      const disp = res.headers.get('content-disposition');
-      if (disp && disp.includes('filename=')) {
-        filename = disp.split('filename=')[1].replace(/"/g, '');
-      }
-      _downloadBlob(blob, filename);
-    }
+    exportScan: (id) => _downloadFileRoute(`/api/scans/${id}/export`, `scan-${id}.json`),
+    exportGroup: (groupId, format) => _downloadFileRoute(`/api/scans/export/group/${groupId}?format=${format}`, `group-${groupId}.${format === 'json-zip' ? 'zip' : format}`)
   };
 
   // ── Appointments ──────────────────────────────────────────────────────────

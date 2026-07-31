@@ -1,16 +1,19 @@
 'use strict';
 
+const { sendSuccess, sendError, sendNotFound, sendForbidden } = require('../utils/responseHelper');
+
+const asyncHandler = require('../utils/asyncHandler');
+
 const { getScanSessionService } = require('../services/scanSessionService');
 const { getProxyService }       = require('../services/proxyService');
 
 // POST /api/scans — start a single scan
-exports.createScan = async (req, res, next) => {
-  try {
+exports.createScan = asyncHandler(async (req, res, next) => {
     const { name, target, moduleIds, params = {}, runnerId, proxyConfig, appointmentId } = req.body;
 
-    if (!target)                 return res.status(400).json({ success: false, error: { message: 'target is required' } });
-    if (!moduleIds?.length)      return res.status(400).json({ success: false, error: { message: 'moduleIds array is required' } });
-    if (!appointmentId)          return res.status(400).json({ success: false, error: { message: 'appointmentId is required' } });
+    if (!target)                 return sendError(res, 'target is required');
+    if (!moduleIds?.length)      return sendError(res, 'moduleIds array is required');
+    if (!appointmentId)          return sendError(res, 'appointmentId is required');
 
     const registry = require('../modules/registry').getRegistry();
     let needsApproval = false;
@@ -28,27 +31,23 @@ exports.createScan = async (req, res, next) => {
       await svc.update(session.id, { status: 'pending_approval' });
       const { getWsHandler } = require('../ws/wsHandler');
       getWsHandler().broadcastAll({ type: 'ADMIN_APPROVAL_REQUIRED', sessionId: session.id, moduleIds, user: req.user.username });
-      return res.status(202).json({ success: true, data: { session, status: 'pending_approval', message: 'Admin approval required' } });
+      return sendSuccess(res, { session, status: 'pending_approval', message: 'Admin approval required' }, 202);
     }
 
     // Run async (don't await — return sessionId immediately)
     const proxyService = getProxyService();
     setImmediate(() => svc.run(session.id, { proxyEnv: proxyService.getExecEnv() }).catch(err => console.error('[ScanController] Background scan execution failed:', err.message)));
 
-    res.status(202).json({ success: true, data: { session } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, { session }, 202);
+  });
 
 // POST /api/scans/bulk — bulk scan: N targets × M modules
-exports.bulkScan = async (req, res, next) => {
-  try {
+exports.bulkScan = asyncHandler(async (req, res, next) => {
     const { name, targets, moduleIds, params = {}, runnerId, proxyConfig, appointmentId } = req.body;
 
-    if (!targets?.length)   return res.status(400).json({ success: false, error: { message: 'targets array is required' } });
-    if (!moduleIds?.length) return res.status(400).json({ success: false, error: { message: 'moduleIds array is required' } });
-    if (!appointmentId)     return res.status(400).json({ success: false, error: { message: 'appointmentId is required' } });
+    if (!targets?.length)   return sendError(res, 'targets array is required');
+    if (!moduleIds?.length) return sendError(res, 'moduleIds array is required');
+    if (!appointmentId)     return sendError(res, 'appointmentId is required');
 
     const registry = require('../modules/registry').getRegistry();
     let needsApproval = false;
@@ -68,7 +67,7 @@ exports.bulkScan = async (req, res, next) => {
       }
       const { getWsHandler } = require('../ws/wsHandler');
       getWsHandler().broadcastAll({ type: 'ADMIN_APPROVAL_REQUIRED', sessionIds: sessions.map(s => s.id), moduleIds, user: req.user.username });
-      return res.status(202).json({ success: true, data: { sessions, count: sessions.length, status: 'pending_approval', message: 'Admin approval required' } });
+      return sendSuccess(res, { sessions, count: sessions.length, status: 'pending_approval', message: 'Admin approval required' }, 202);
     }
 
     const proxyService = getProxyService();
@@ -78,64 +77,48 @@ exports.bulkScan = async (req, res, next) => {
       }
     });
 
-    res.status(202).json({ success: true, data: { sessions, count: sessions.length } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, { sessions, count: sessions.length }, 202);
+  });
 
 // POST /api/scans/search or GET /api/scans — list user's sessions
-exports.listScans = async (req, res, next) => {
-  try {
+exports.listScans = asyncHandler(async (req, res, next) => {
     const params = { ...req.query, ...req.body };
     const { page = 1, limit = 20, status, appointmentId } = params;
     const svc    = getScanSessionService();
     const result = await svc.list(req.user.id, { page: parseInt(page, 10), limit: parseInt(limit, 10), status, appointmentId });
-    res.json({ success: true, data: result });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, result);
+  });
 
 // GET /api/scans/:id — get a session
-exports.getScan = async (req, res, next) => {
-  try {
+exports.getScan = asyncHandler(async (req, res, next) => {
     const svc     = getScanSessionService();
     const session = await svc.get(req.params.id);
-    if (!session) return res.status(404).json({ success: false, error: { message: 'Session not found' } });
+    if (!session) return sendNotFound(res, 'Session not found');
     if (session.userId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: { message: 'Forbidden' } });
+      return sendForbidden(res, 'Forbidden');
     }
-    res.json({ success: true, data: { session } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, { session });
+  });
 
 // DELETE /api/scans/:id — cancel / delete session
-exports.deleteScan = async (req, res, next) => {
-  try {
+exports.deleteScan = asyncHandler(async (req, res, next) => {
     const svc     = getScanSessionService();
     const session = await svc.get(req.params.id);
-    if (!session) return res.status(404).json({ success: false, error: { message: 'Session not found' } });
+    if (!session) return sendNotFound(res, 'Session not found');
     if (session.userId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: { message: 'Forbidden' } });
+      return sendForbidden(res, 'Forbidden');
     }
     await svc.delete(req.params.id);
-    res.json({ success: true, data: { message: 'Session deleted' } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, { message: 'Session deleted' });
+  });
 
 // POST /api/scans/:id/retry — retry a failed scan
-exports.retryScan = async (req, res, next) => {
-  try {
+exports.retryScan = asyncHandler(async (req, res, next) => {
     const svc = getScanSessionService();
     let session = await svc.get(req.params.id);
-    if (!session) return res.status(404).json({ success: false, error: { message: 'Session not found' } });
+    if (!session) return sendNotFound(res, 'Session not found');
     if (session.userId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: { message: 'Forbidden' } });
+      return sendForbidden(res, 'Forbidden');
     }
     
     // Only allow retry on failed or completed sessions
@@ -156,7 +139,7 @@ exports.retryScan = async (req, res, next) => {
       session = await svc.update(session.id, { status: 'pending_approval' });
       const { getWsHandler } = require('../ws/wsHandler');
       getWsHandler().broadcastAll({ type: 'ADMIN_APPROVAL_REQUIRED', sessionId: session.id, moduleIds: session.moduleIds, user: req.user.username });
-      return res.status(202).json({ success: true, data: { session, status: 'pending_approval', message: 'Admin approval required' } });
+      return sendSuccess(res, { session, status: 'pending_approval', message: 'Admin approval required' }, 202);
     }
 
     const { runnerId, proxyConfig } = req.body;
@@ -174,22 +157,18 @@ exports.retryScan = async (req, res, next) => {
     const proxyService = getProxyService();
     setImmediate(() => svc.run(session.id, { proxyEnv: proxyService.getExecEnv() }).catch(err => console.error('[ScanController] Background scan execution failed:', err.message)));
     
-    res.status(202).json({ success: true, data: { session } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, { session }, 202);
+  });
 
 // POST /api/scans/:id/approve — approve a strict scan
-exports.approveScan = async (req, res, next) => {
-  try {
+exports.approveScan = asyncHandler(async (req, res, next) => {
     if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: { message: 'Only admins can approve strict scans' } });
+      return sendForbidden(res, 'Only admins can approve strict scans');
     }
 
     const svc = getScanSessionService();
     let session = await svc.get(req.params.id);
-    if (!session) return res.status(404).json({ success: false, error: { message: 'Session not found' } });
+    if (!session) return sendNotFound(res, 'Session not found');
 
     if (session.status !== 'pending_approval') {
       return res.status(400).json({ success: false, error: { message: `Session is not pending approval (status: ${session.status})` } });
@@ -200,11 +179,8 @@ exports.approveScan = async (req, res, next) => {
     const proxyService = getProxyService();
     setImmediate(() => svc.run(session.id, { proxyEnv: proxyService.getExecEnv() }).catch(err => console.error('[ScanController] Background scan execution failed:', err.message)));
 
-    res.status(202).json({ success: true, data: { session } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendSuccess(res, { session }, 202);
+  });
 function flattenObject(ob) {
   var toReturn = {};
   for (var i in ob) {
@@ -224,32 +200,27 @@ function flattenObject(ob) {
   return toReturn;
 }
 
-exports.exportScan = async (req, res, next) => {
-  try {
+exports.exportScan = asyncHandler(async (req, res, next) => {
     const svc = getScanSessionService();
     const session = await svc.get(req.params.id);
-    if (!session) return res.status(404).json({ success: false, error: { message: 'Session not found' } });
+    if (!session) return sendNotFound(res, 'Session not found');
     if (session.userId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: { message: 'Forbidden' } });
+      return sendForbidden(res, 'Forbidden');
     }
     
     const filename = `scan-${session.id}.json`;
     res.setHeader('Content-disposition', 'attachment; filename=' + filename);
     res.setHeader('Content-type', 'application/json');
     res.send(JSON.stringify(session, null, 2));
-  } catch (err) {
-    next(err);
-  }
-};
+  });
 
-exports.exportGroup = async (req, res, next) => {
-  try {
+exports.exportGroup = asyncHandler(async (req, res, next) => {
     const svc = getScanSessionService();
     const sessions = await svc.getByGroupId(req.params.groupId);
-    if (!sessions || sessions.length === 0) return res.status(404).json({ success: false, error: { message: 'Group not found' } });
+    if (!sessions || sessions.length === 0) return sendNotFound(res, 'Group not found');
     
     if (sessions[0].userId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: { message: 'Forbidden' } });
+      return sendForbidden(res, 'Forbidden');
     }
     
     const format = req.query.format || 'json';
@@ -312,9 +283,6 @@ exports.exportGroup = async (req, res, next) => {
       return res.send(buf);
     }
     
-    res.status(400).json({ success: false, error: { message: 'Invalid format requested' } });
-  } catch (err) {
-    next(err);
-  }
-};
+    sendError(res, 'Invalid format requested');
+  });
 

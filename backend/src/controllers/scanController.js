@@ -205,3 +205,116 @@ exports.approveScan = async (req, res, next) => {
     next(err);
   }
 };
+function flattenObject(ob) {
+  var toReturn = {};
+  for (var i in ob) {
+    if (!ob.hasOwnProperty(i)) continue;
+    if (typeof ob[i] === 'object' && ob[i] !== null && !Array.isArray(ob[i])) {
+      var flatObject = flattenObject(ob[i]);
+      for (var x in flatObject) {
+        if (!flatObject.hasOwnProperty(x)) continue;
+        toReturn[i + '.' + x] = flatObject[x];
+      }
+    } else if (Array.isArray(ob[i])) {
+      toReturn[i] = JSON.stringify(ob[i]);
+    } else {
+      toReturn[i] = ob[i];
+    }
+  }
+  return toReturn;
+}
+
+exports.exportScan = async (req, res, next) => {
+  try {
+    const svc = getScanSessionService();
+    const session = await svc.get(req.params.id);
+    if (!session) return res.status(404).json({ success: false, error: { message: 'Session not found' } });
+    if (session.userId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, error: { message: 'Forbidden' } });
+    }
+    
+    const filename = `scan-${session.id}.json`;
+    res.setHeader('Content-disposition', 'attachment; filename=' + filename);
+    res.setHeader('Content-type', 'application/json');
+    res.send(JSON.stringify(session, null, 2));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.exportGroup = async (req, res, next) => {
+  try {
+    const svc = getScanSessionService();
+    const sessions = await svc.getByGroupId(req.params.groupId);
+    if (!sessions || sessions.length === 0) return res.status(404).json({ success: false, error: { message: 'Group not found' } });
+    
+    if (sessions[0].userId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, error: { message: 'Forbidden' } });
+    }
+    
+    const format = req.query.format || 'json';
+    const groupName = sessions[0].name || sessions[0].groupId || 'group';
+    const safeName = groupName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    
+    if (format === 'json') {
+      res.setHeader('Content-disposition', `attachment; filename=group-${safeName}.json`);
+      res.setHeader('Content-type', 'application/json');
+      return res.send(JSON.stringify(sessions, null, 2));
+    }
+    
+    if (format === 'json-zip') {
+      const archiver = require('archiver');
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      res.setHeader('Content-disposition', `attachment; filename=group-${safeName}.zip`);
+      res.setHeader('Content-type', 'application/zip');
+      
+      archive.on('error', (err) => next(err));
+      archive.pipe(res);
+      
+      sessions.forEach(s => {
+        archive.append(JSON.stringify(s, null, 2), { name: `scan-${s.id}.json` });
+      });
+      
+      return archive.finalize();
+    }
+    
+    if (format === 'csv' || format === 'xlsx') {
+      const xlsx = require('xlsx');
+      
+      const rows = sessions.map(s => {
+        const flat = {
+          SessionID: s.id,
+          Name: s.name,
+          Status: s.status,
+          CreatedAt: s.createdAt,
+          Targets: Array.isArray(s.targets) ? s.targets.join(', ') : s.targets,
+          Modules: Array.isArray(s.moduleIds) ? s.moduleIds.join(', ') : s.moduleIds
+        };
+        
+        if (s.results) {
+          const flatResults = flattenObject(s.results);
+          for (const key in flatResults) {
+            flat[`Result_${key}`] = flatResults[key];
+          }
+        }
+        return flat;
+      });
+      
+      const ws = xlsx.utils.json_to_sheet(rows);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, "Scans");
+      
+      const buf = xlsx.write(wb, { type: 'buffer', bookType: format });
+      
+      const mime = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      res.setHeader('Content-disposition', `attachment; filename=group-${safeName}.${format}`);
+      res.setHeader('Content-type', mime);
+      return res.send(buf);
+    }
+    
+    res.status(400).json({ success: false, error: { message: 'Invalid format requested' } });
+  } catch (err) {
+    next(err);
+  }
+};
+

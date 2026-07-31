@@ -22,7 +22,7 @@ class ScanSessionService extends EventEmitter {
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
 
-  async create(userId, { name, mode = 'single', targets, moduleIds, params = {}, appointmentId = null, runnerId = null, proxyConfig = null }) {
+  async create(userId, { name, mode = 'single', targets, moduleIds, params = {}, appointmentId = null, runnerId = null, proxyConfig = null, groupId = null }) {
     const { ScanSession } = getDb();
     const id = crypto.randomUUID();
     
@@ -32,6 +32,7 @@ class ScanSessionService extends EventEmitter {
       appointment_id: appointmentId,
       name: name || `Scan ${new Date().toLocaleTimeString()}`,
       mode,
+      group_id: groupId,
       runner_id: runnerId,
       proxy_config: proxyConfig ? JSON.stringify(proxyConfig) : null,
       targets: JSON.stringify(targets),
@@ -124,6 +125,7 @@ class ScanSessionService extends EventEmitter {
     if (!Array.isArray(targets)) throw new Error('targets must be an array');
     if (targets.length > 10000) throw new Error('Too many targets for bulk creation');
     const sessions = [];
+    const groupId = crypto.randomUUID();
     for (let i = 0; i < targets.length; i++) {
       const targetEntry = targets[i];
       const targetUri = typeof targetEntry === 'string' ? targetEntry : (targetEntry.target || targetEntry.uri);
@@ -134,6 +136,7 @@ class ScanSessionService extends EventEmitter {
       const session = await this.create(userId, {
         name: name ? `${name} [${i + 1}/${targets.length}]` : undefined,
         mode: 'bulk',
+        groupId,
         runnerId,
         proxyConfig,
         appointmentId,
@@ -144,6 +147,12 @@ class ScanSessionService extends EventEmitter {
       sessions.push(session);
     }
     return sessions;
+  }
+
+  async getByGroupId(groupId) {
+    const { ScanSession } = getDb();
+    const rows = await ScanSession.findAll({ where: { group_id: groupId } });
+    return rows.map(r => this._fromModel(r));
   }
 
   async recoverStuckSessions() {
@@ -174,6 +183,7 @@ class ScanSessionService extends EventEmitter {
     return {
       id:        row.id,
       userId:    row.user_id,
+      groupId:   row.group_id,
       name:      row.name,
       mode:      row.mode,
       targets:   this._tryParse(row.targets, []),

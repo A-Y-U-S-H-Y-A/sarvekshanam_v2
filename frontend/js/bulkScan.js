@@ -4,7 +4,11 @@
 
 const BulkScan = (() => {
   let _sessions = [];
+  let _groupedSessions = {};
   let _allModules = [];
+  let _currentGroupId = null;
+  let _currentPage = 1;
+  const PAGE_SIZE = 10;
 
   function _escHtml(str) {
     if (str == null) return '';
@@ -315,16 +319,82 @@ const BulkScan = (() => {
 
   // ── Progress UI ───────────────────────────────────────────────────────────
 
+  function getGroupedHtml(sessions, options = {}) {
+    const localGroups = {};
+    sessions.forEach(s => {
+      const gId = s.groupId || s.id;
+      if (!localGroups[gId]) localGroups[gId] = [];
+      localGroups[gId].push(s);
+      
+      if (!_groupedSessions[gId]) _groupedSessions[gId] = [];
+      const idx = _groupedSessions[gId].findIndex(x => x.id === s.id);
+      if (idx !== -1) _groupedSessions[gId][idx] = s;
+      else _groupedSessions[gId].push(s);
+    });
+
+    return Object.entries(localGroups)
+      .map(([gId, groupSessions]) => _progressGroupHtml(gId, groupSessions, options))
+      .join('');
+  }
+
   function renderProgress(sessions) {
     const container = document.getElementById('bulk-progress-list');
     if (!sessions.length) {
       container.innerHTML = '<p style="padding:12px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">No bulk scans running.</p>';
       return;
     }
-    container.innerHTML = sessions.map(s => _progressItemHtml(s)).join('');
+    
+    container.innerHTML = getGroupedHtml(sessions);
   }
 
-  function _progressItemHtml(s) {
+  function _progressGroupHtml(gId, sessions, options) {
+    if (sessions.length === 1 && !sessions[0].groupId) {
+       return _progressItemHtml(sessions[0], options);
+    }
+    
+    let completed = 0, failed = 0, running = 0;
+    sessions.forEach(s => {
+      if (s.status === 'completed') completed++;
+      else if (s.status === 'failed') failed++;
+      else if (s.status === 'running') running++;
+    });
+
+    const total = sessions.length;
+    const done = completed + failed;
+    const pct = total > 0 ? (done / total) * 100 : 0;
+    const isFailed = failed > 0;
+    const barColor = isFailed ? 'var(--accent-red)' : '';
+    
+    let baseName = sessions[0].name || sessions[0].targets?.[0] || 'Bulk Scan';
+    const match = baseName.match(/^(.*)\s+\[\d+\/\d+\]$/);
+    if (match) baseName = match[1];
+
+    let overallStatus = done === total ? 'completed' : running > 0 ? 'running' : 'pending';
+
+    return `
+      <div class="bulk-progress-item" id="bulk-group-${_escHtml(gId)}" style="cursor:pointer;" onclick="BulkScan.showGroupDetails('${_escHtml(gId)}')">
+        <div class="bulk-progress-header">
+          <span class="bulk-progress-name">📁 ${_escHtml(baseName)} <span style="font-size:0.75rem;color:var(--fg-4);font-weight:normal;">(${total} targets)</span></span>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span class="status-badge status-${overallStatus}">${overallStatus}</span>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportGroup('${_escHtml(gId)}', 'json-zip')" title="Export JSON Zip">⬇️ Zip</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportGroup('${_escHtml(gId)}', 'csv')" title="Export CSV">⬇️ CSV</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportGroup('${_escHtml(gId)}', 'xlsx')" title="Export Excel">⬇️ Excel</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); BulkScan.attachGroupToAI('${_escHtml(gId)}')">📎</button>
+          </div>
+        </div>
+        <div class="bulk-progress-bar-wrap">
+          <div class="bulk-progress-bar-fill" id="group-bar-${_escHtml(gId)}" style="width:${pct}%;${barColor ? 'background:'+barColor : ''}"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);">
+          <span id="group-stats-${_escHtml(gId)}">${done} / ${total} finished</span>
+          <span>${_relTime(sessions[0].createdAt)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function _progressItemHtml(s, options = {}) {
     const pct = s.status === 'completed' ? 100 : s.status === 'running' ? 60 : s.status === 'failed' ? 100 : 0;
     const barColor = s.status === 'failed' ? 'var(--accent-red)' : '';
     
@@ -332,18 +402,28 @@ const BulkScan = (() => {
     if (s.runner_name) extras += `<span class="status-badge">🏃 ${_escHtml(s.runner_name)}</span>`;
     if (s.retry_count > 0) extras += `<span class="status-badge">Retry ${_escHtml(s.retry_count)}</span>`;
     if (s.queue_position > 0) extras += `<span class="status-badge">Queue: #${_escHtml(s.queue_position)}</span>`;
+    
+    let relaunchBtn = '';
+    if (s.status === 'failed_permanent' && options.allowRelaunch) {
+      relaunchBtn = `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); PowerUser.relaunch('${_escHtml(s.id)}')">↻</button>`;
+    }
 
     const sessName = s.name || s.targets?.[0] || '—';
     const attachName = (s.name || s.id).replace(/'/g,'');
+    
+    const clickAttr = options.onClickItem ? `onclick="${options.onClickItem}('${_escHtml(s.id)}'); event.stopPropagation()"` : `onclick="event.stopPropagation()"`;
+    const cursor = options.onClickItem ? 'cursor:pointer;' : 'cursor:default;';
 
     return `
-      <div class="bulk-progress-item" id="bulk-sess-${_escHtml(s.id)}">
+      <div class="bulk-progress-item" id="bulk-sess-${_escHtml(s.id)}" style="${cursor}" ${clickAttr}>
         <div class="bulk-progress-header">
           <span class="bulk-progress-name">${_escHtml(sessName)}</span>
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             ${extras}
+            ${relaunchBtn}
             <span class="status-badge status-${_escHtml(s.status)}">${_escHtml(s.status)}</span>
-            <button class="btn btn-ghost btn-sm" onclick="PowerUser.attachSession('${_escHtml(s.id)}','${_escHtml(attachName)}')">📎</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); API.scans.exportScan('${_escHtml(s.id)}')" title="Export JSON">⬇️ JSON</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); PowerUser.attachSession('${_escHtml(s.id)}','${_escHtml(attachName)}')">📎</button>
           </div>
         </div>
         <div class="bulk-progress-bar-wrap">
@@ -358,13 +438,150 @@ const BulkScan = (() => {
   }
 
   function _onBulkUpdate(session) {
-    const el = document.getElementById(`bulk-sess-${session.id}`);
-    if (!el) return;
-    const pct = session.status === 'completed' ? 100 : session.status === 'running' ? 60 : 0;
-    const bar = document.getElementById(`bar-${session.id}`);
-    if (bar) bar.style.width = pct + '%';
-    el.querySelector('.status-badge').className = `status-badge ${session.status}`;
-    el.querySelector('.status-badge').textContent = session.status;
+    const gId = session.groupId || session.id;
+    if (_groupedSessions[gId]) {
+      const idx = _groupedSessions[gId].findIndex(s => s.id === session.id);
+      if (idx !== -1) {
+        _groupedSessions[gId][idx] = session;
+      } else {
+        _groupedSessions[gId].push(session);
+      }
+      
+      _updateGroupCard(gId);
+      
+      if (_currentGroupId === gId) {
+        renderGroupModal();
+      }
+    } else {
+      refresh();
+    }
+  }
+
+  function _updateGroupCard(gId) {
+    const sessions = _groupedSessions[gId];
+    if (!sessions) return;
+    
+    if (sessions.length === 1 && !sessions[0].groupId) {
+       const el = document.getElementById(`bulk-sess-${sessions[0].id}`);
+       if (!el) return;
+       const pct = sessions[0].status === 'completed' ? 100 : sessions[0].status === 'running' ? 60 : sessions[0].status === 'failed' ? 100 : 0;
+       const bar = document.getElementById(`bar-${sessions[0].id}`);
+       if (bar) {
+           bar.style.width = pct + '%';
+           bar.style.background = sessions[0].status === 'failed' ? 'var(--accent-red)' : '';
+       }
+       const badge = el.querySelector('.status-badge');
+       if (badge) {
+         badge.className = `status-badge status-${sessions[0].status}`;
+         badge.textContent = sessions[0].status;
+       }
+       return;
+    }
+
+    let completed = 0, failed = 0, running = 0;
+    sessions.forEach(s => {
+      if (s.status === 'completed') completed++;
+      else if (s.status === 'failed') failed++;
+      else if (s.status === 'running') running++;
+    });
+    
+    const total = sessions.length;
+    const done = completed + failed;
+    const pct = total > 0 ? (done / total) * 100 : 0;
+    const isFailed = failed > 0;
+    const barColor = isFailed ? 'var(--accent-red)' : '';
+    let overallStatus = done === total ? 'completed' : running > 0 ? 'running' : 'pending';
+
+    const groupEl = document.getElementById(`bulk-group-${gId}`);
+    if (groupEl) {
+      const bar = document.getElementById(`group-bar-${gId}`);
+      if (bar) {
+        bar.style.width = pct + '%';
+        bar.style.background = barColor || '';
+      }
+      const stats = document.getElementById(`group-stats-${gId}`);
+      if (stats) stats.textContent = `${done} / ${total} finished`;
+      const badge = groupEl.querySelector('.status-badge');
+      if (badge) {
+        badge.className = `status-badge status-${overallStatus}`;
+        badge.textContent = overallStatus;
+      }
+    }
+  }
+
+  function showGroupDetails(gId) {
+    _currentGroupId = gId;
+    _currentPage = 1;
+    const modal = document.getElementById('bulk-scan-details-modal');
+    modal.classList.remove('hidden');
+    renderGroupModal();
+  }
+
+  function hideGroupDetails() {
+    const modal = document.getElementById('bulk-scan-details-modal');
+    modal.classList.add('hidden');
+    _currentGroupId = null;
+  }
+
+  function renderGroupModal() {
+    if (!_currentGroupId || !_groupedSessions[_currentGroupId]) return;
+    const sessions = _groupedSessions[_currentGroupId];
+    const total = sessions.length;
+    
+    let completed = 0, failed = 0;
+    sessions.forEach(s => {
+      if (s.status === 'completed') completed++;
+      else if (s.status === 'failed') failed++;
+    });
+    
+    const done = completed + failed;
+    const pct = total > 0 ? (done / total) * 100 : 0;
+    const isFailed = failed > 0;
+    const barColor = isFailed ? 'var(--accent-red)' : '';
+    
+    const bar = document.getElementById('bulk-scan-details-progress-bar');
+    if (bar) {
+      bar.style.width = pct + '%';
+      bar.style.background = barColor || '';
+    }
+    const stats = document.getElementById('bulk-scan-details-stats');
+    if (stats) stats.textContent = `${done} / ${total} completed`;
+
+    const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+    if (_currentPage > totalPages) _currentPage = totalPages;
+
+    const start = (_currentPage - 1) * PAGE_SIZE;
+    const pageSessions = sessions.slice(start, start + PAGE_SIZE);
+
+    const list = document.getElementById('bulk-scan-details-list');
+    if (list) {
+      list.innerHTML = pageSessions.map(s => _progressItemHtml(s)).join('');
+    }
+
+    const info = document.getElementById('bulk-scan-page-info');
+    if (info) info.textContent = `Page ${_currentPage} of ${totalPages}`;
+
+    const prevBtn = document.getElementById('bulk-scan-page-prev');
+    if (prevBtn) prevBtn.disabled = _currentPage <= 1;
+    
+    const nextBtn = document.getElementById('bulk-scan-page-next');
+    if (nextBtn) nextBtn.disabled = _currentPage >= totalPages;
+  }
+
+  function prevPage() {
+    if (_currentPage > 1) {
+      _currentPage--;
+      renderGroupModal();
+    }
+  }
+
+  function nextPage() {
+    if (!_currentGroupId) return;
+    const totalPages = Math.ceil((_groupedSessions[_currentGroupId]?.length || 0) / PAGE_SIZE);
+    if (_currentPage < totalPages) {
+      _currentPage++;
+      renderGroupModal();
+    }
   }
 
   function _relTime(iso) {
@@ -435,5 +652,17 @@ const BulkScan = (() => {
     container.innerHTML = html;
   }
 
-  return { init, run, refresh, addTarget, updateCountBadge, renderParams, handleFileUpload, applyMapping, cancelMapping, downloadTargets };
+  function attachGroupToAI(gId) {
+    if (typeof AIChat === 'undefined') return;
+    const sessions = _groupedSessions[gId];
+    if (!sessions || sessions.length === 0) return;
+    
+    sessions.forEach(s => {
+      AIChat.attachSessionId(s.id);
+    });
+    
+    showToast(`Attached ${sessions.length} sessions to AI Chat`);
+  }
+
+  return { init, run, refresh, addTarget, updateCountBadge, renderParams, handleFileUpload, applyMapping, cancelMapping, downloadTargets, showGroupDetails, hideGroupDetails, prevPage, nextPage, getGroupedHtml, attachGroupToAI };
 })();

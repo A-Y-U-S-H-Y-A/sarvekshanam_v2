@@ -175,15 +175,7 @@ const Appointments = (() => {
       if (scans.length === 0) {
         scansList.innerHTML = '<p style="padding:14px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">No scans linked.</p>';
       } else {
-        scansList.innerHTML = scans.map(s => `
-          <div style="padding:10px 12px;border:1px solid var(--border);background:var(--bg-3);margin-bottom:6px;display:flex;flex-direction:column;gap:6px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-              <span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--fg);">${_escHtml(s.name)}</span>
-              <span class="status-badge status-${s.status}">${s.status}</span>
-            </div>
-            <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);">${_relTime(s.createdAt)}</div>
-          </div>
-        `).join('');
+        scansList.innerHTML = typeof BulkScan !== 'undefined' ? BulkScan.getGroupedHtml(scans) : '';
       }
 
       if (chats.length === 0) {

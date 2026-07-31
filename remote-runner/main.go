@@ -570,12 +570,6 @@ func runBulkHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := AcquireSemaphore(); err != nil {
-		http.Error(w, "Too many requests. Runner is at maximum capacity.", http.StatusTooManyRequests)
-		return
-	}
-	defer ReleaseSemaphore()
-
 	var req RunBulkRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
@@ -647,8 +641,23 @@ func runBulkHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	entryPath := cleanEntryPath
 
+	var sseMu sync.Mutex
+	safeSendSSE := func(msg SSEMessage) {
+		sseMu.Lock()
+		defer sseMu.Unlock()
+		SendSSE(w, flusher, msg)
+	}
+
+	var globalWg sync.WaitGroup
 	for _, target := range req.Targets {
-		func(target string) {
+		globalWg.Add(1)
+		go func(target string) {
+			defer globalWg.Done()
+
+			// Block on the global concurrency limit per target
+			AcquireSemaphoreBlocking()
+			defer ReleaseSemaphore()
+
 			var cmd *exec.Cmd
 			
 			// Determine language executable
@@ -695,17 +704,17 @@ func runBulkHandler(w http.ResponseWriter, r *http.Request) {
 
 			stdoutPipe, err := cmd.StdoutPipe()
 			if err != nil {
-				SendSSE(w, flusher, SSEMessage{Type: "error", Target: target, Error: "Failed to create stdout pipe: " + err.Error()})
+				safeSendSSE(SSEMessage{Type: "error", Target: target, Error: "Failed to create stdout pipe: " + err.Error()})
 				return
 			}
 			stderrPipe, err := cmd.StderrPipe()
 			if err != nil {
-				SendSSE(w, flusher, SSEMessage{Type: "error", Target: target, Error: "Failed to create stderr pipe: " + err.Error()})
+				safeSendSSE(SSEMessage{Type: "error", Target: target, Error: "Failed to create stderr pipe: " + err.Error()})
 				return
 			}
 
 			if err := cmd.Start(); err != nil {
-				SendSSE(w, flusher, SSEMessage{Type: "error", Target: target, Error: err.Error()})
+				safeSendSSE(SSEMessage{Type: "error", Target: target, Error: err.Error()})
 				return
 			}
 
@@ -716,7 +725,7 @@ func runBulkHandler(w http.ResponseWriter, r *http.Request) {
 				defer wg.Done()
 				scanner := bufio.NewScanner(stdoutPipe)
 				for scanner.Scan() {
-					SendSSE(w, flusher, SSEMessage{Type: "stdout", Target: t, Line: scanner.Text()})
+					safeSendSSE(SSEMessage{Type: "stdout", Target: t, Line: scanner.Text()})
 				}
 			}(target)
 
@@ -724,7 +733,7 @@ func runBulkHandler(w http.ResponseWriter, r *http.Request) {
 				defer wg.Done()
 				scanner := bufio.NewScanner(stderrPipe)
 				for scanner.Scan() {
-					SendSSE(w, flusher, SSEMessage{Type: "stderr", Target: t, Line: scanner.Text()})
+					safeSendSSE(SSEMessage{Type: "stderr", Target: t, Line: scanner.Text()})
 				}
 			}(target)
 
@@ -737,14 +746,15 @@ func runBulkHandler(w http.ResponseWriter, r *http.Request) {
 					exitCode = exitError.ExitCode()
 				} else {
 					exitCode = 1
-					SendSSE(w, flusher, SSEMessage{Type: "error", Target: target, Error: err.Error()})
+					safeSendSSE(SSEMessage{Type: "error", Target: target, Error: err.Error()})
 				}
 			}
 
 			files := sandbox.DetectGeneratedFiles()
-			SendSSE(w, flusher, SSEMessage{Type: "done", Target: target, ExitCode: &exitCode, Files: files, SandboxID: sandbox.ID})
+			safeSendSSE(SSEMessage{Type: "done", Target: target, ExitCode: &exitCode, Files: files, SandboxID: sandbox.ID})
 		}(target)
 	}
+	globalWg.Wait()
 }
 
 type RunCmdRequest struct {

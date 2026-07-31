@@ -9,6 +9,8 @@ router.post('/bulk', authenticate, ctrl.bulkScan);
 router.post('/',     authenticate, ctrl.createScan);
 router.get('/',      authenticate, ctrl.listScans);
 router.post('/search', authenticate, ctrl.listScans);
+router.get('/export/group/:groupId', authenticate, ctrl.exportGroup);
+router.get('/:id/export', authenticate, ctrl.exportScan);
 router.get('/:id',   authenticate, ctrl.getScan);
 router.post('/:id/retry', authenticate, ctrl.retryScan);
 router.post('/:id/approve', authenticate, ctrl.approveScan);

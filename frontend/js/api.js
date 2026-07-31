@@ -58,6 +58,28 @@ const API = (() => {
     retry:  (id) => request('POST', `/api/scans/${id}/retry`),
     approve:(id) => request('POST', `/api/scans/${id}/approve`),
     delete: (id) => request('DELETE', `/api/scans/${id}`),
+    exportScan: async (id) => {
+      const res = await fetch(`${BASE}/api/scans/${id}/export`, { headers: headers() });
+      if (!res.ok) throw new Error('Failed to export scan');
+      const blob = await res.blob();
+      let filename = `scan-${id}.json`;
+      const disp = res.headers.get('content-disposition');
+      if (disp && disp.includes('filename=')) {
+        filename = disp.split('filename=')[1].replace(/"/g, '');
+      }
+      _downloadBlob(blob, filename);
+    },
+    exportGroup: async (groupId, format) => {
+      const res = await fetch(`${BASE}/api/scans/export/group/${groupId}?format=${format}`, { headers: headers() });
+      if (!res.ok) throw new Error('Failed to export group');
+      const blob = await res.blob();
+      let filename = `group-${groupId}.${format === 'json-zip' ? 'zip' : format}`;
+      const disp = res.headers.get('content-disposition');
+      if (disp && disp.includes('filename=')) {
+        filename = disp.split('filename=')[1].replace(/"/g, '');
+      }
+      _downloadBlob(blob, filename);
+    }
   };
 
   // ── Appointments ──────────────────────────────────────────────────────────
@@ -217,6 +239,20 @@ const API = (() => {
       return res.blob();
     }
   };
+
+  function _downloadBlob(blob, filename) {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+  }
 
   return { auth, modules, scans, appointments, commands, ai, health, settings, runners, keys, rag, groups, queue, files, getToken };
 })();

@@ -39,6 +39,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.TEXT,
       allowNull: false
     },
+    group_id: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     params: {
       type: DataTypes.TEXT,
       allowNull: true

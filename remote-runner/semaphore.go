@@ -24,6 +24,11 @@ func AcquireSemaphore() error {
 	}
 }
 
+// AcquireSemaphoreBlocking blocks until a slot is available.
+func AcquireSemaphoreBlocking() {
+	concurrencySem <- struct{}{}
+}
+
 // ReleaseSemaphore releases a slot.
 func ReleaseSemaphore() {
 	select {

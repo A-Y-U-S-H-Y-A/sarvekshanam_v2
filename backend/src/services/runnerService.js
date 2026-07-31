@@ -18,6 +18,62 @@ class RunnerService {
     this.runnerResponseAvg = new Map();
     /** @type {Map<string, boolean>} runner id → supports /run-bulk */
     this.runnerBulkSupport = new Map();
+    /** @type {Map<string, number>} runner id → number of active tasks */
+    this.runnerActiveTasks = new Map();
+  }
+
+  incrementRunnerTasks(runnerId) {
+    const current = this.runnerActiveTasks.get(runnerId) || 0;
+    this.runnerActiveTasks.set(runnerId, current + 1);
+  }
+
+  decrementRunnerTasks(runnerId) {
+    const current = this.runnerActiveTasks.get(runnerId) || 0;
+    this.runnerActiveTasks.set(runnerId, Math.max(0, current - 1));
+  }
+
+  getRunnerActiveTasks(runnerId) {
+    return this.runnerActiveTasks.get(runnerId) || 0;
+  }
+
+  /**
+   * Finds the least loaded online runner in the same group as the given runner.
+   * If the preferred runner is not in a group, or is the only one, returns it (if online).
+   */
+  async getBestRunnerInGroup(preferredRunnerId) {
+    const { RemoteHost, SlaveGroupMember } = getDb();
+    
+    // Find the preferred runner's group
+    const member = await SlaveGroupMember.findOne({ where: { runner_id: preferredRunnerId } });
+    if (!member) {
+      // No group, just return the preferred if online
+      const r = await RemoteHost.findOne({ where: { id: preferredRunnerId, status: 'online' } });
+      return r ? r.id : preferredRunnerId;
+    }
+
+    // Find all online peers in the same group
+    const peers = await SlaveGroupMember.findAll({
+      where: { group_id: member.group_id },
+      include: [{ model: RemoteHost, as: 'runner', where: { status: 'online' } }]
+    });
+
+    if (peers.length === 0) {
+      return preferredRunnerId; // fallback
+    }
+
+    let bestRunnerId = null;
+    let minLoad = Infinity;
+
+    for (const peer of peers) {
+      const runnerId = peer.runner.id;
+      const load = this.getRunnerActiveTasks(runnerId);
+      if (load < minLoad) {
+        minLoad = load;
+        bestRunnerId = runnerId;
+      }
+    }
+
+    return bestRunnerId || preferredRunnerId;
   }
 
   async getRunners() {
@@ -113,6 +169,7 @@ class RunnerService {
     const runner = await this.getRunnerById(runnerId);
     if (!runner) throw new Error('Runner not found');
 
+    this.incrementRunnerTasks(runnerId);
     try {
       // Encrypt sensitive params if we have the slave's public key
       let body = { module: moduleName, args };
@@ -128,7 +185,7 @@ class RunnerService {
         }
       }
 
-      const response = await fetch(`${runner.url}/run`, {
+      const response = await this._fetchWithRetry(`${runner.url}/run`, {
         method: 'POST',
         headers: this._getAuthHeaders(runner),
         body: JSON.stringify(body)
@@ -209,6 +266,8 @@ class RunnerService {
       }
     } catch (err) {
       throw new Error(`Remote execution failed: ${err.message}`);
+    } finally {
+      this.decrementRunnerTasks(runnerId);
     }
   }
 
@@ -426,17 +485,19 @@ class RunnerService {
     const runner = await this.getRunnerById(runnerId);
     if (!runner) throw new Error('Runner not found');
 
-    let body = { module: moduleName, targets, args };
-    const cryptoSvc = getCryptoService();
-    const pubKey = cryptoSvc.getPublicKey(runnerId);
-    if (pubKey && args.length > 0) {
+    this.incrementRunnerTasks(runnerId);
+    try {
+      let body = { module: moduleName, targets, args };
+      const cryptoSvc = getCryptoService();
+      const pubKey = cryptoSvc.getPublicKey(runnerId);
+      if (pubKey && args.length > 0) {
       try {
         body.encrypted_args = cryptoSvc.encryptForSlave(runnerId, JSON.stringify(args));
         delete body.args;
       } catch (_encryptErr) { console.warn('Failed to encrypt bulk args for slave, sending plaintext:', _encryptErr.message); }
     }
 
-    const response = await fetch(`${runner.url}/run-bulk`, {
+    const response = await this._fetchWithRetry(`${runner.url}/run-bulk`, {
       method: 'POST',
       headers: this._getAuthHeaders(runner),
       body: JSON.stringify(body)
@@ -520,6 +581,9 @@ class RunnerService {
         throw new Error(`Failed to parse JSON response from runner /run-bulk: ${rawText}`);
       }
     }
+    } finally {
+      this.decrementRunnerTasks(runnerId);
+    }
   }
 
   async _downloadFiles(runner, sandboxId, files) {
@@ -582,6 +646,22 @@ class RunnerService {
     // Migrate tasks
     const queueSvc = getExecutionQueueService();
     await queueSvc.migrateTasksFromRunner(offlineRunnerId, targetRunner.id);
+  }
+
+  async _fetchWithRetry(url, options, maxRetries = 7) {
+    let attempt = 0;
+    while (true) {
+      attempt++;
+      const response = await fetch(url, options);
+      if (response.status === 429 && attempt <= maxRetries) {
+        // Exponential backoff: 2s, 4s, 8s, 16s, 32s, 64s, 128s
+        const delay = 1000 * Math.pow(2, attempt);
+        console.warn(`[RunnerService] 429 Too Many Requests from ${url}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      return response;
+    }
   }
 }
 

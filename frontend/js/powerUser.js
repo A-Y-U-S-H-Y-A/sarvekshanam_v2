@@ -318,28 +318,11 @@ const PowerUser = (() => {
         listEl.innerHTML = '<p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">No sessions yet.</p>';
         return;
       }
-      listEl.innerHTML = data.sessions.map(s => {
-        let extras = '';
-        if (s.runner_name) extras += `<span class="status-badge">🏃 ${_escHtml(s.runner_name)}</span>`;
-        if (s.retry_count > 0) extras += `<span class="status-badge">Retry ${_escHtml(s.retry_count)}</span>`;
-        if (s.queue_position > 0) extras += `<span class="status-badge">Queue: #${_escHtml(s.queue_position)}</span>`;
-        
-        let relaunchBtn = '';
-        if (s.status === 'failed_permanent') {
-          relaunchBtn = `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); PowerUser.relaunch('${_escHtml(s.id)}')" title="Re-launch">↻</button>`;
-        }
-        
-        return `
-        <div class="session-item" onclick="PowerUser.viewSession('${_escHtml(s.id)}')">
-          <span class="status-badge status-${_escHtml(s.status)}">${_escHtml(s.status)}</span>
-          <span class="session-name" title="${_escHtml(s.targets?.join(', '))}">${_escHtml(s.name || s.id)}</span>
-          <span class="session-meta">${_escHtml(_relTime(s.createdAt))}</span>
-          ${extras}
-          ${relaunchBtn}
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="event.stopPropagation(); PowerUser.attachSession('${_escHtml(s.id)}','${_escHtml((s.name||s.id).replace(/'/g,''))}')" title="Attach to AI Chat">📎</button>
-        </div>
-      `;
-      }).join('');
+      
+      listEl.innerHTML = BulkScan.getGroupedHtml(data.sessions, {
+        allowRelaunch: true,
+        onClickItem: 'PowerUser.viewSession'
+      });
     } catch (_loadErr) {
       listEl.innerHTML = '<p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Failed to load sessions.</p>';
     }

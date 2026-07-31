@@ -659,6 +659,36 @@
     </div>
   </div>
 
+  <!-- ── Bulk Scan Details Modal ──────────────────────────────────────────── -->
+  <div id="bulk-scan-details-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;">
+    <div class="modal-box" style="width:600px; max-width:90vw;">
+      <div class="modal-header">
+        <span class="modal-title" id="bulk-scan-details-title">Bulk Scan Details</span>
+        <button class="btn btn-ghost btn-sm" onclick="BulkScan.hideGroupDetails()">✕</button>
+      </div>
+      
+      <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+        <span id="bulk-scan-details-stats" style="font-size:0.8rem;color:var(--fg-2);">0 / 0 completed</span>
+        <div class="bulk-progress-bar-wrap" style="width:200px;margin:0;">
+          <div class="bulk-progress-bar-fill" id="bulk-scan-details-progress-bar" style="width:0%;"></div>
+        </div>
+      </div>
+      
+      <div id="bulk-scan-details-list" style="background:var(--bg-3);padding:10px;border-radius:4px;min-height:300px;max-height:60vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+        <!-- populated by js -->
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--border);">
+        <div style="display:flex;gap:4px;align-items:center;">
+          <button class="btn btn-ghost btn-sm" id="bulk-scan-page-prev" onclick="BulkScan.prevPage()">◀ Prev</button>
+          <span id="bulk-scan-page-info" style="font-family:var(--font-mono);font-size:0.75rem;color:var(--fg-4);">Page 1 of 1</span>
+          <button class="btn btn-ghost btn-sm" id="bulk-scan-page-next" onclick="BulkScan.nextPage()">Next ▶</button>
+        </div>
+        <button class="btn btn-ghost" onclick="BulkScan.hideGroupDetails()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Manage Models Modal ──────────────────────────────────────────── -->
   <div id="manage-models-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;">
     <div class="modal-box" style="width:400px;">
@@ -748,6 +778,7 @@
       patchModal('new-appointment-modal');
       patchModal('manage-models-modal');
       patchModal('tool-confirm-modal');
+      patchModal('bulk-scan-details-modal');
     });
   </script>
 </body>

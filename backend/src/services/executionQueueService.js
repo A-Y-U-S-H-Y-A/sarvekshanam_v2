@@ -137,8 +137,18 @@ class ExecutionQueueService {
 
       const startTime = Date.now();
 
+      const runnerService = getRunnerService();
+      let activeRunnerId = session.runnerId;
+      if (activeRunnerId) {
+        activeRunnerId = await runnerService.getBestRunnerInGroup(activeRunnerId);
+        // Persist the swapped runnerId so UI knows which runner took it
+        if (activeRunnerId !== session.runnerId) {
+          await scanSessionService.update(session.id, { runnerId: activeRunnerId });
+        }
+      }
+
       const runOpts = { ...opts };
-      if (session.runnerId) runOpts.runnerId = session.runnerId;
+      if (activeRunnerId) runOpts.runnerId = activeRunnerId;
       if (session.proxyConfig) {
         try { runOpts.proxyConfig = typeof session.proxyConfig === 'string' ? JSON.parse(session.proxyConfig) : session.proxyConfig; } catch(e) {
           console.error('Failed to parse proxy config:', e.message);
@@ -178,11 +188,10 @@ class ExecutionQueueService {
       };
 
       // ── 3.6: Prefer /run-bulk when a specific runner is pinned ───────────────
-      const runnerService = getRunnerService();
-      const hasExplicitRunner = !!session.runnerId;
+      const hasExplicitRunner = !!activeRunnerId;
       const hasMultipleTargets = (session.targets || []).length > 1;
 
-      if (hasExplicitRunner && hasMultipleTargets && runnerService.runnerSupportsBulk(session.runnerId)) {
+      if (hasExplicitRunner && hasMultipleTargets && runnerService.runnerSupportsBulk(activeRunnerId)) {
         // Single module bulk delegation
         for (const moduleId of session.moduleIds) {
           const mod = registry.getById(moduleId);
@@ -190,7 +199,7 @@ class ExecutionQueueService {
           const args = Object.entries(params).flatMap(([k, v]) => [`--${k}`, String(v)]);
           try {
             const bulkResults = await runnerService.runBulkOnHost(
-              session.runnerId, moduleId, session.targets, args,
+              activeRunnerId, moduleId, session.targets, args,
               (event) => onEvent(moduleId, event.target, event)
             );
             const elapsed = Date.now() - startTime;
@@ -206,7 +215,7 @@ class ExecutionQueueService {
             }
           } catch (err) {
             // Fallback: bulk not supported — disable for this runner
-            runnerService.markBulkUnsupported(session.runnerId);
+            runnerService.markBulkUnsupported(activeRunnerId);
             // Fall through to per-target execution below
             for (const target of session.targets) {
               if (!results[target]) results[target] = {};

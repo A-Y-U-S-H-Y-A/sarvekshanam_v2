@@ -9,9 +9,14 @@ import (
 func TestGetModules(t *testing.T) {
 	// Move the real modules dir temporarily if it exists
 	if _, err := os.Stat("modules"); err == nil {
+		os.RemoveAll("modules_backup")
 		os.Rename("modules", "modules_backup")
 		defer os.Rename("modules_backup", "modules")
 	}
+	
+	moduleMutex.Lock()
+	moduleCache = []ModuleConfig{}
+	moduleMutex.Unlock()
 	
 	// 1. Missing dir
 	modules, err := loadModulesFromDisk()

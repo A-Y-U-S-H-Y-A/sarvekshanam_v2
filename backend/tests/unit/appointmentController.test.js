@@ -79,9 +79,23 @@ describe('appointmentController Unit Tests', () => {
 
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
+    it('returns 403 if forbidden', async () => {
+      req.params.id = 'a1';
+      req.user.role = 'user';
+      req.user.id = 'u2';
+      mockSvc.get.mockResolvedValue({ id: 'a1', userId: 'u1' });
+
+      await appointmentController.get(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
   });
 
   describe('update', () => {
+    beforeEach(() => {
+      mockSvc.get.mockResolvedValue({ id: 'a1', userId: 'u1' });
+    });
+
     it('returns 404 if not found', async () => {
       req.params.id = 'a1';
       mockSvc.get.mockResolvedValueOnce(null);
@@ -104,6 +118,10 @@ describe('appointmentController Unit Tests', () => {
   });
 
   describe('remove', () => {
+    beforeEach(() => {
+      mockSvc.get.mockResolvedValue({ id: 'a1', userId: 'u1' });
+    });
+
     it('deletes appointment', async () => {
       req.params.id = 'a1';
 
@@ -115,6 +133,10 @@ describe('appointmentController Unit Tests', () => {
   });
 
   describe('getScans', () => {
+    beforeEach(() => {
+      mockSvc.get.mockResolvedValue({ id: 'a1', userId: 'u1' });
+    });
+
     it('returns scans', async () => {
       req.params.id = 'a1';
       mockSvc.getScans.mockResolvedValue([{ id: 's1' }]);
@@ -126,6 +148,10 @@ describe('appointmentController Unit Tests', () => {
   });
 
   describe('getChats', () => {
+    beforeEach(() => {
+      mockSvc.get.mockResolvedValue({ id: 'a1', userId: 'u1' });
+    });
+
     it('returns chats', async () => {
       req.params.id = 'a1';
       mockSvc.getChats.mockResolvedValue([{ id: 'c1' }]);
@@ -137,6 +163,10 @@ describe('appointmentController Unit Tests', () => {
   });
 
   describe('createChat', () => {
+    beforeEach(() => {
+      mockSvc.get.mockResolvedValue({ id: 'a1', userId: 'u1' });
+    });
+
     it('creates a chat and returns 201', async () => {
       req.params.id = 'a1';
       req.body = { provider: 'groq', model: 'm1', messages: [] };
@@ -146,6 +176,34 @@ describe('appointmentController Unit Tests', () => {
 
       expect(mockSvc.linkChat).toHaveBeenCalledWith('a1', { provider: 'groq', model: 'm1', messages: [] });
       expect(res.status).toHaveBeenCalledWith(201);
+    });
+  });
+
+  describe('updateChatTitle', () => {
+    beforeEach(() => {
+      mockSvc.get.mockResolvedValue({ id: 'a1', userId: 'u1' });
+      mockSvc.updateChatTitle = jest.fn();
+    });
+
+    it('returns 400 if title missing', async () => {
+      req.params.id = 'a1';
+      req.params.chatId = 'c1';
+      req.body = {};
+      
+      await appointmentController.updateChatTitle(req, res, next);
+      
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it('updates chat title', async () => {
+      req.params.id = 'a1';
+      req.params.chatId = 'c1';
+      req.body = { title: 'New Title' };
+      
+      await appointmentController.updateChatTitle(req, res, next);
+      
+      expect(mockSvc.updateChatTitle).toHaveBeenCalledWith('c1', 'New Title');
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
   });
 

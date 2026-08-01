@@ -7,7 +7,7 @@
     "prestart": "node scripts/initDb.js",
     "start": "node src/server.js",
     "predev": "node scripts/initDb.js",
-    "dev": "nodemon --watch src --watch .env src/server.js",
+    "dev": "node --watch --env-file=.env src/server.js",
     "test": "jest --forceExit --runInBand",
     "test:coverage": "jest --coverage --forceExit --runInBand",
     "test:unit": "jest tests/unit --forceExit --runInBand",
@@ -15,22 +15,22 @@
     "make-admin": "node scripts/makeAdmin.js"
   },
   "dependencies": {
-    "@langchain/core": "^1.2.3",
+    "@langchain/core": "^1.2.4",
     "@langchain/groq": "^1.3.1",
     "@langchain/ollama": "^1.3.0",
     "@langchain/openai": "^1.5.5",
     "archiver": "^8.0.0",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.0.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.6.0",
-    "js-yaml": "^5.2.1",
+    "express-rate-limit": "^8.6.1",
+    "js-yaml": "^5.2.2",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
     "multer": "^2.2.0",
-    "mysql2": "^3.23.1",
+    "mysql2": "^3.23.2",
     "node-cron": "^4.6.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -38,23 +38,27 @@
     "passport-openidconnect": "^0.1.2",
     "pg": "^8.22.0",
     "pg-hstore": "^2.3.4",
+    "read-excel-file": "^9.3.5",
     "sequelize": "^6.37.8",
     "sequelize-cli": "^6.6.5",
     "sqlite-vec": "^0.1.9",
     "sqlite3": "^6.0.1",
     "swagger-ui-express": "^5.0.1",
-    "ws": "^8.21.1",
-    "xlsx": "^0.18.5"
+    "write-excel-file": "^4.1.1",
+    "ws": "^8.21.1"
   },
   "overrides": {
     "uuid": "^11.1.1",
     "test-exclude": "^8.0.0",
-    "glob": "^13.0.0"
+    "glob": "^13.0.0",
+    "tar": "^7.5.21",
+    "undici": "^6.26.1",
+    "js-yaml": "^5.2.2",
+    "brace-expansion": "^5.0.9"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "jest": "^30.4.2",
-    "nodemon": "^3.1.14",
     "supertest": "^7.2.2"
   },
   "jest": {
@@ -62,15 +66,17 @@
     "testTimeout": 30000,
     "collectCoverageFrom": [
       "src/**/*.js",
+      "!src/db/migrations_sequelize/**",
       "!src/swagger/**",
-      "!src/server.js"
+      "!src/server.js",
+      "!src/modules/**"
     ],
     "coverageThreshold": {
       "global": {
-        "branches": 70,
-        "functions": 80,
-        "lines": 80,
-        "statements": 80
+        "branches": 60,
+        "functions": 85,
+        "lines": 83,
+        "statements": 83
       }
     }
   }

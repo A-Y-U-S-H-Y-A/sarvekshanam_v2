@@ -915,51 +915,50 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
+	startApp()
+	
+	addr := fmt.Sprintf(":%s", port)
+	log.Printf("Starting remote runner on %s", addr)
+	if err := http.ListenAndServe(addr, nil); err != nil {
+		log.Fatalf("Server failed: %v", err)
+	}
+}
 
-	// Initialize concurrency semaphore
+func startApp() *http.ServeMux {
 	InitSemaphore(maxConcurrent)
-
-	// Clean up any orphaned sandboxes from a previous crash
 	RecoverState()
 
-	// Initialize RSA keypair for asymmetric encryption
 	if err := InitCrypto(); err != nil {
 		log.Printf("WARNING: Crypto init failed: %v (encrypted payloads won't work)", err)
 	} else {
 		log.Println("RSA-2048 keypair generated for asymmetric encryption")
 	}
 
-	// Initialize JWKS validator (fetches master signing keys)
 	if err := InitJWKS(); err != nil {
 		log.Printf("WARNING: JWKS init failed: %v (JWT auth won't work)", err)
 	}
 
-	// Initial module load
 	refreshModuleCache()
 
-	// Watch jwks_urls.json for hot-reload
 	WatchConfig("jwks_urls.json", func() {
 		jwksValidator.ReloadConfig()
 	})
 
-	// Watch modules directory for hot-reload
 	WatchDirectory("modules", func(event, filename string) {
 		log.Printf("[Watcher] Detected %s on %s - refreshing modules", event, filename)
 		refreshModuleCache()
 	})
 
-	http.HandleFunc("/ping", pingHandler) // Auth skipped by middleware
-	http.HandleFunc("/modules", authMiddleware(modulesHandler))
-	http.HandleFunc("/modules/schema", authMiddleware(schemaHandler))
-	http.HandleFunc("/run", authMiddleware(runHandler))
-	http.HandleFunc("/run-bulk", authMiddleware(runBulkHandler))
-	http.HandleFunc("/run-cmd", authMiddleware(runCmdHandler))
-	http.HandleFunc("/files/", authMiddleware(filesHandler))
-	http.HandleFunc("/pubkey", authMiddleware(pubkeyHandler))
-
-	addr := fmt.Sprintf(":%s", port)
-	log.Printf("Starting remote runner on %s", addr)
-	if err := http.ListenAndServe(addr, nil); err != nil {
-		log.Fatalf("Server failed: %v", err)
-	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ping", pingHandler) // Auth skipped by middleware
+	mux.HandleFunc("/modules", authMiddleware(modulesHandler))
+	mux.HandleFunc("/modules/schema", authMiddleware(schemaHandler))
+	mux.HandleFunc("/run", authMiddleware(runHandler))
+	mux.HandleFunc("/run-bulk", authMiddleware(runBulkHandler))
+	mux.HandleFunc("/run-cmd", authMiddleware(runCmdHandler))
+	mux.HandleFunc("/files/", authMiddleware(filesHandler))
+	mux.HandleFunc("/pubkey", authMiddleware(pubkeyHandler))
+	
+	http.DefaultServeMux = mux
+	return mux
 }

@@ -10,6 +10,18 @@ const { _resetScanSessionService } = require('../../src/services/scanSessionServ
 const { _resetCommandService }     = require('../../src/services/commandService');
 const { createApp }                = require('../../src/app');
 
+jest.mock('../../src/services/runnerService', () => {
+  const original = jest.requireActual('../../src/services/runnerService');
+  return {
+    ...original,
+    getRunnerService: () => {
+      const instance = original.getRunnerService();
+      instance.startPolling = jest.fn();
+      instance.stopPolling = jest.fn();
+      return instance;
+    }
+  };
+});
 let app, testDb;
 
 beforeEach(async () => {

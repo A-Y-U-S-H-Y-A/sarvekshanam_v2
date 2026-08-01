@@ -24,15 +24,10 @@ test.describe('Queue WebSocket Status', () => {
   });
 
   test('queue badge updates correctly based on WS events', async ({ page }) => {
-    // Route WebSocket
-    await page.routeWebSocket('**/ws', ws => {
-      ws.onMessage(message => {
-        // Echo or handle client messages if necessary
-      });
-      
-      // We expose a function to the page to trigger server messages
-      page.exposeFunction('triggerServerQueueUpdate', (position) => {
-        ws.send(JSON.stringify({
+    let currentWs = null;
+    await page.exposeFunction('triggerServerQueueUpdate', (position) => {
+      if (currentWs) {
+        currentWs.send(JSON.stringify({
           type: 'QUEUE_UPDATE',
           data: {
             sessionId: 'test-sess',
@@ -40,6 +35,13 @@ test.describe('Queue WebSocket Status', () => {
             estimatedWaitMs: position * 5000
           }
         }));
+      }
+    });
+
+    await page.routeWebSocket('**/ws', ws => {
+      currentWs = ws;
+      ws.onMessage(message => {
+        // Echo or handle client messages if necessary
       });
     });
 

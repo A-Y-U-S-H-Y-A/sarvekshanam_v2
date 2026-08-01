@@ -16,6 +16,7 @@ global.showToast = jest.fn();
 global.AIChat = { setAppointmentId: jest.fn(), clearAttachedSessions: jest.fn(), attachSessionId: jest.fn() };
 global.PowerUser = { refreshSessions: jest.fn() };
 global.Auth = { getUser: jest.fn().mockReturnValue({ role: 'admin' }) };
+global.BulkScan = { getGroupedHtml: jest.fn(scans => scans.map(s => `<div>${s.name}</div>`).join('')) };
 
 // Load the module code
 const appointmentsCode = fs.readFileSync(path.resolve(__dirname, '../../js/appointments.js'), 'utf8');

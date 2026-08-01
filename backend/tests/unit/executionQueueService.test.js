@@ -61,7 +61,8 @@ describe('ExecutionQueueService Unit Tests', () => {
     mockRunnerService = {
       runnerSupportsBulk: jest.fn().mockReturnValue(false),
       runBulkOnHost: jest.fn(),
-      markBulkUnsupported: jest.fn()
+      markBulkUnsupported: jest.fn(),
+      getBestRunnerInGroup: jest.fn().mockImplementation(async (id) => id)
     };
     runnerMock.mockReturnValue(mockRunnerService);
 

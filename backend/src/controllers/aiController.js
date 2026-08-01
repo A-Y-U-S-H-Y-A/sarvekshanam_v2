@@ -9,6 +9,7 @@ const { getScanSessionService } = require('../services/scanSessionService');
 
 // POST /api/ai/chat — streaming SSE response
 exports.chat = asyncHandler(async (req, res, next) => {
+  try {
     const { provider = 'groq', model, messages, sessionIds, appointmentId } = req.body;
 
     if (!messages?.length) {
@@ -97,15 +98,14 @@ exports.chat = asyncHandler(async (req, res, next) => {
       next(err);
     }
   }
-};
+});
 
 // GET /api/ai/providers
-exports.listProviders = async (req, res, next) => {
-  try {
-    const ai        = getAIService();
-    const providers = await ai.listProviders();
-    sendSuccess(res, { providers });
-  });
+exports.listProviders = asyncHandler(async (req, res, next) => {
+  const ai        = getAIService();
+  const providers = await ai.listProviders();
+  sendSuccess(res, { providers });
+});
 
 const PROVIDER_PACKAGES = {
   groq:       { install: '@langchain/groq',                uninstall: '@langchain/groq' },

@@ -250,7 +250,6 @@ exports.exportGroup = asyncHandler(async (req, res, next) => {
     }
     
     if (format === 'csv' || format === 'xlsx') {
-      const xlsx = require('xlsx');
       
       const rows = sessions.map(s => {
         const flat = {
@@ -271,11 +270,40 @@ exports.exportGroup = asyncHandler(async (req, res, next) => {
         return flat;
       });
       
-      const ws = xlsx.utils.json_to_sheet(rows);
-      const wb = xlsx.utils.book_new();
-      xlsx.utils.book_append_sheet(wb, ws, "Scans");
+      const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+      let buf;
       
-      const buf = xlsx.write(wb, { type: 'buffer', bookType: format });
+      if (format === 'csv') {
+        let csvStr = headers.join(',') + '\n';
+        for (const row of rows) {
+          csvStr += headers.map(h => {
+            let val = row[h] || '';
+            if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+              return '"' + val.replace(/"/g, '""') + '"';
+            }
+            return val;
+          }).join(',') + '\n';
+        }
+        buf = Buffer.from(csvStr, 'utf8');
+      } else {
+        const writeXlsxFile = require('write-excel-file/node');
+        const data = [];
+        if (headers.length > 0) {
+          data.push(headers.map(h => ({ value: String(h), fontWeight: 'bold' })));
+          for (const row of rows) {
+            data.push(headers.map(h => {
+               let val = row[h];
+               if (val == null) return { value: '' };
+               if (typeof val === 'number') return { type: Number, value: val };
+               if (typeof val === 'boolean') return { type: Boolean, value: val };
+               return { type: String, value: String(val) };
+            }));
+          }
+        } else {
+          data.push([{ value: 'Empty', fontWeight: 'bold' }]);
+        }
+        buf = await writeXlsxFile(data, { buffer: true });
+      }
       
       const mime = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       res.setHeader('Content-disposition', `attachment; filename=group-${safeName}.${format}`);

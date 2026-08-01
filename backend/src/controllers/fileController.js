@@ -4,7 +4,7 @@ const { sendSuccess, sendError, sendNotFound, sendForbidden } = require('../util
 
 const asyncHandler = require('../utils/asyncHandler');
 
-const xlsx = require('xlsx');
+
 
 // POST /api/files/upload
 exports.uploadTargets = asyncHandler(async (req, res, next) => {
@@ -13,17 +13,14 @@ exports.uploadTargets = asyncHandler(async (req, res, next) => {
     }
 
     const buffer = req.file.buffer;
-    const workbook = xlsx.read(buffer, { type: 'buffer' });
-    
-    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-      return res.status(400).json({ success: false, error: 'Empty or invalid workbook' });
+    let rawData = [];
+    if (req.file.originalname && req.file.originalname.toLowerCase().endsWith('.csv')) {
+      const text = buffer.toString('utf8');
+      rawData = text.split('\n').filter(l => l.trim()).map(line => line.split(','));
+    } else {
+      const readXlsxFile = require('read-excel-file/node');
+      rawData = await readXlsxFile(buffer);
     }
-
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
-    
-    // Parse sheet to JSON array, taking the first row as headers
-    const rawData = xlsx.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
     if (rawData.length < 2) {
       return res.status(400).json({ success: false, error: 'Sheet must contain at least a header row and one data row' });
     }
@@ -62,18 +59,38 @@ exports.downloadTargets = asyncHandler(async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'entries must be an array' });
     }
     
-    // Create worksheet from json
-    const worksheet = xlsx.utils.json_to_sheet(entries.length ? entries : [ { Target: '' } ]);
-    const workbook = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(workbook, worksheet, 'Targets');
+    const rows = entries.length ? entries : [ { Target: '' } ];
+    const headers = Object.keys(rows[0]);
     
     let buffer;
     if (format === 'csv') {
-      buffer = xlsx.write(workbook, { bookType: 'csv', type: 'buffer' });
+      let csvStr = headers.join(',') + '\n';
+      for (const row of rows) {
+        csvStr += headers.map(h => {
+           let val = row[h] || '';
+           if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+              return '"' + val.replace(/"/g, '""') + '"';
+           }
+           return val;
+        }).join(',') + '\n';
+      }
+      buffer = Buffer.from(csvStr, 'utf8');
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', 'attachment; filename="targets.csv"');
     } else {
-      buffer = xlsx.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+      const writeXlsxFile = require('write-excel-file/node');
+      const data = [];
+      data.push(headers.map(h => ({ value: String(h), fontWeight: 'bold' })));
+      for (const row of rows) {
+         data.push(headers.map(h => {
+            let val = row[h];
+            if (val == null) return { value: '' };
+            if (typeof val === 'number') return { type: Number, value: val };
+            if (typeof val === 'boolean') return { type: Boolean, value: val };
+            return { type: String, value: String(val) };
+         }));
+      }
+      buffer = await writeXlsxFile(data, { buffer: true });
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename="targets.xlsx"');
     }

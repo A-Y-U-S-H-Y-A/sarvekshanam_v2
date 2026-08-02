@@ -1524,16 +1524,57 @@ body {
   background: var(--bg-2);
   transition: all var(--t-fast);
   user-select: none;
+  border-radius: 4px;
 }
 
-.bulk-module-item:hover     { border-color: var(--border-2); color: var(--fg); }
+.bulk-module-item:hover     { border-color: var(--border-2); color: var(--fg); background: var(--surface); }
 .bulk-module-item.selected  { background: var(--amber-glow); border-color: var(--amber-dim); color: var(--amber); }
 
 .bulk-module-item input[type="checkbox"] {
-  accent-color: var(--amber);
-  width: 13px;
-  height: 13px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.custom-checkbox {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-2);
+  border-radius: 3px;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.custom-checkbox svg {
+  width: 10px;
+  height: 10px;
+  stroke: var(--bg);
+  stroke-dasharray: 12;
+  stroke-dashoffset: 12;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.bulk-module-item input[type="checkbox"]:checked + .custom-checkbox {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.bulk-module-item input[type="checkbox"]:checked + .custom-checkbox svg {
+  stroke-dashoffset: 0;
+}
+
+.bulk-module-item input[type="checkbox"]:focus-visible + .custom-checkbox {
+  box-shadow: 0 0 0 2px var(--amber-glow);
 }
 
 /* Bulk progress items */

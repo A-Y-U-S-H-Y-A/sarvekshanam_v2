@@ -21,7 +21,7 @@ const API = (() => {
   }
 
   async function request(method, path, body) {
-    const opts = { method, headers: headers() };
+    const opts = { method, headers: headers(), cache: 'no-store' };
     if (body !== undefined) opts.body = JSON.stringify(body);
     const res = await fetch(`${BASE}${path}`, opts);
     const data = await res.json().catch(err => {

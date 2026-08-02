@@ -48,13 +48,16 @@ const BulkScan = (() => {
       const all  = Object.values(data.categories).flat();
       _allModules = all;
       container.innerHTML = all.map(m => `
-        <div class="bulk-module-item" onclick="this.querySelector('input').click()">
-          <input type="checkbox" id="bulk-mod-${Utils.escHtml(m.id)}" value="${Utils.escHtml(m.id)}" onchange="BulkScan.updateCountBadge();BulkScan.renderParams()" style="accent-color:var(--amber);width:13px;height:13px;flex-shrink:0;cursor:pointer;" ${checked.includes(m.id) ? 'checked' : ''} />
-          <label for="bulk-mod-${Utils.escHtml(m.id)}" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px;">
+        <label class="bulk-module-item ${checked.includes(m.id) ? 'selected' : ''}">
+          <input type="checkbox" id="bulk-mod-${Utils.escHtml(m.id)}" value="${Utils.escHtml(m.id)}" onchange="this.parentElement.classList.toggle('selected', this.checked); BulkScan.updateCountBadge(); BulkScan.renderParams();" ${checked.includes(m.id) ? 'checked' : ''} />
+          <div class="custom-checkbox">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M3 8L6 11L11 3.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px;">
             ${Utils.escHtml(m.name)} 
             <span style="font-size:0.62rem;color:var(--fg-4);font-style:italic;font-weight:400;">${Utils.escHtml(m.category)}</span>
-          </label>
-        </div>
+          </div>
+        </label>
       `).join('');
       updateCountBadge();
     } catch (_loadErr) {

@@ -84,7 +84,11 @@ const App = (() => {
 
     _activeTab = tab;
     if (tab === 'power' && typeof PowerUser !== 'undefined' && PowerUser.refreshSessions) {
+      if (typeof PowerUser.loadModules === 'function') PowerUser.loadModules();
       PowerUser.refreshSessions();
+    }
+    if (tab === 'bulk' && typeof BulkScan !== 'undefined' && typeof BulkScan.loadModuleCheckboxes === 'function') {
+      BulkScan.loadModuleCheckboxes();
     }
     if (tab === 'ai' && typeof AIChat !== 'undefined' && AIChat.updateRagStats) {
       AIChat.updateRagStats();

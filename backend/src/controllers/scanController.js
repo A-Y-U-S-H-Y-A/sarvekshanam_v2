@@ -7,6 +7,18 @@ const asyncHandler = require('../utils/asyncHandler');
 const { getScanSessionService } = require('../services/scanSessionService');
 const { getProxyService }       = require('../services/proxyService');
 
+const checkRequiresApproval = (moduleIds, userRole) => {
+  if (userRole === 'admin') return false;
+  const registry = require('../modules/registry').getRegistry();
+  for (const modId of (moduleIds || [])) {
+    const mod = registry.getById(modId);
+    if (mod && mod.meta && mod.meta.requires_strict_approval) {
+      return true;
+    }
+  }
+  return false;
+};
+
 // POST /api/scans — start a single scan
 exports.createScan = asyncHandler(async (req, res, next) => {
     const { name, target, moduleIds, params = {}, runnerId, proxyConfig, appointmentId } = req.body;
@@ -15,14 +27,7 @@ exports.createScan = asyncHandler(async (req, res, next) => {
     if (!moduleIds?.length)      return sendError(res, 'moduleIds array is required');
     if (!appointmentId)          return sendError(res, 'appointmentId is required');
 
-    const registry = require('../modules/registry').getRegistry();
-    let needsApproval = false;
-    for (const modId of moduleIds) {
-      const mod = registry.getById(modId);
-      if (mod && mod.meta.requires_strict_approval && req.user.role !== 'admin') {
-        needsApproval = true;
-      }
-    }
+    const needsApproval = checkRequiresApproval(moduleIds, req.user.role);
 
     const svc     = getScanSessionService();
     const session = await svc.create(req.user.id, { name, mode: 'single', targets: [target], moduleIds, params, runnerId, proxyConfig, appointmentId });
@@ -49,14 +54,7 @@ exports.bulkScan = asyncHandler(async (req, res, next) => {
     if (!moduleIds?.length) return sendError(res, 'moduleIds array is required');
     if (!appointmentId)     return sendError(res, 'appointmentId is required');
 
-    const registry = require('../modules/registry').getRegistry();
-    let needsApproval = false;
-    for (const modId of moduleIds) {
-      const mod = registry.getById(modId);
-      if (mod && mod.meta.requires_strict_approval && req.user.role !== 'admin') {
-        needsApproval = true;
-      }
-    }
+    const needsApproval = checkRequiresApproval(moduleIds, req.user.role);
 
     const svc      = getScanSessionService();
     const sessions = await svc.bulkCreate(req.user.id, { name, targets, moduleIds, params, runnerId, proxyConfig, appointmentId });
@@ -83,9 +81,14 @@ exports.bulkScan = asyncHandler(async (req, res, next) => {
 // POST /api/scans/search or GET /api/scans — list user's sessions
 exports.listScans = asyncHandler(async (req, res, next) => {
     const params = { ...req.query, ...req.body };
-    const { page = 1, limit = 20, status, appointmentId } = params;
+    const { page = 1, limit = 20, status, mode, appointmentId, grouped } = params;
     const svc    = getScanSessionService();
-    const result = await svc.list(req.user.id, { page: parseInt(page, 10), limit: parseInt(limit, 10), status, appointmentId });
+    let result;
+    if (grouped === 'true' || grouped === true) {
+      result = await svc.listGrouped(req.user.id, { page: parseInt(page, 10), limit: parseInt(limit, 10), status, mode, appointmentId });
+    } else {
+      result = await svc.list(req.user.id, { page: parseInt(page, 10), limit: parseInt(limit, 10), status, mode, appointmentId });
+    }
     sendSuccess(res, result);
   });
 
@@ -126,14 +129,7 @@ exports.retryScan = asyncHandler(async (req, res, next) => {
       return res.status(400).json({ success: false, error: { message: `Cannot retry session in status: ${session.status}` } });
     }
 
-    const registry = require('../modules/registry').getRegistry();
-    let needsApproval = false;
-    for (const modId of (session.moduleIds || [])) {
-      const mod = registry.getById(modId);
-      if (mod && mod.meta && mod.meta.requires_strict_approval && req.user.role !== 'admin') {
-        needsApproval = true;
-      }
-    }
+    const needsApproval = checkRequiresApproval(session.moduleIds, req.user.role);
 
     if (needsApproval) {
       session = await svc.update(session.id, { status: 'pending_approval' });
@@ -181,24 +177,9 @@ exports.approveScan = asyncHandler(async (req, res, next) => {
 
     sendSuccess(res, { session }, 202);
   });
-function flattenObject(ob) {
-  var toReturn = {};
-  for (var i in ob) {
-    if (!ob.hasOwnProperty(i)) continue;
-    if (typeof ob[i] === 'object' && ob[i] !== null && !Array.isArray(ob[i])) {
-      var flatObject = flattenObject(ob[i]);
-      for (var x in flatObject) {
-        if (!flatObject.hasOwnProperty(x)) continue;
-        toReturn[i + '.' + x] = flatObject[x];
-      }
-    } else if (Array.isArray(ob[i])) {
-      toReturn[i] = JSON.stringify(ob[i]);
-    } else {
-      toReturn[i] = ob[i];
-    }
-  }
-  return toReturn;
-}
+
+
+
 
 exports.exportScan = asyncHandler(async (req, res, next) => {
     const svc = getScanSessionService();
@@ -230,12 +211,18 @@ exports.exportGroup = asyncHandler(async (req, res, next) => {
     if (format === 'json') {
       res.setHeader('Content-disposition', `attachment; filename=group-${safeName}.json`);
       res.setHeader('Content-type', 'application/json');
-      return res.send(JSON.stringify(sessions, null, 2));
+      res.write('[\n');
+      for (let i = 0; i < sessions.length; i++) {
+        res.write(JSON.stringify(sessions[i], null, 2));
+        if (i < sessions.length - 1) res.write(',\n');
+      }
+      res.write('\n]');
+      return res.end();
     }
     
     if (format === 'json-zip') {
-      const archiver = require('archiver');
-      const archive = archiver('zip', { zlib: { level: 9 } });
+      const { ZipArchive } = require('archiver');
+      const archive = new ZipArchive({ zlib: { level: 9 } });
       res.setHeader('Content-disposition', `attachment; filename=group-${safeName}.zip`);
       res.setHeader('Content-type', 'application/zip');
       
@@ -249,66 +236,62 @@ exports.exportGroup = asyncHandler(async (req, res, next) => {
       return archive.finalize();
     }
     
-    if (format === 'csv' || format === 'xlsx') {
+    // Flatten data for CSV/XLSX
+    const rows = sessions.map(s => {
+      const flat = {
+        SessionID: s.id,
+        Name: s.name,
+        Status: s.status,
+        Mode: s.mode,
+        CreatedAt: s.createdAt,
+        RunnerID: s.runnerId || s.runner_id || '',
+        RetryCount: s.retryCount || s.retry_count || 0,
+        Targets: Array.isArray(s.targets) ? s.targets.join(', ') : s.targets,
+        Modules: Array.isArray(s.moduleIds) ? s.moduleIds.join(', ') : s.moduleIds,
+        Params: typeof s.params === 'object' ? JSON.stringify(s.params) : s.params,
+        Error: s.error || ''
+      };
       
-      const rows = sessions.map(s => {
-        const flat = {
-          SessionID: s.id,
-          Name: s.name,
-          Status: s.status,
-          CreatedAt: s.createdAt,
-          Targets: Array.isArray(s.targets) ? s.targets.join(', ') : s.targets,
-          Modules: Array.isArray(s.moduleIds) ? s.moduleIds.join(', ') : s.moduleIds
-        };
-        
-        if (s.results) {
-          const flatResults = flattenObject(s.results);
-          for (const key in flatResults) {
-            flat[`Result_${key}`] = flatResults[key];
-          }
-        }
-        return flat;
-      });
-      
-      const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-      let buf;
-      
-      if (format === 'csv') {
-        let csvStr = headers.join(',') + '\n';
-        for (const row of rows) {
-          csvStr += headers.map(h => {
-            let val = row[h] || '';
-            if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
-              return '"' + val.replace(/"/g, '""') + '"';
-            }
-            return val;
-          }).join(',') + '\n';
-        }
-        buf = Buffer.from(csvStr, 'utf8');
-      } else {
-        const writeXlsxFile = require('write-excel-file/node');
-        const data = [];
-        if (headers.length > 0) {
-          data.push(headers.map(h => ({ value: String(h), fontWeight: 'bold' })));
-          for (const row of rows) {
-            data.push(headers.map(h => {
-               let val = row[h];
-               if (val == null) return { value: '' };
-               if (typeof val === 'number') return { type: Number, value: val };
-               if (typeof val === 'boolean') return { type: Boolean, value: val };
-               return { type: String, value: String(val) };
-            }));
-          }
-        } else {
-          data.push([{ value: 'Empty', fontWeight: 'bold' }]);
-        }
-        buf = await writeXlsxFile(data, { buffer: true });
+      if (s.results) {
+        flat.Results = JSON.stringify(s.results);
       }
-      
-      const mime = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      res.setHeader('Content-disposition', `attachment; filename=group-${safeName}.${format}`);
-      res.setHeader('Content-type', mime);
-      return res.send(buf);
+      return flat;
+    });
+    
+    const headerSet = new Set();
+    rows.forEach(r => Object.keys(r).forEach(k => headerSet.add(k)));
+    const headers = Array.from(headerSet);
+    
+    if (format === 'csv') {
+      const { stringify } = require('csv-stringify/sync');
+      const csvStr = stringify(rows, { header: true, columns: headers });
+      res.setHeader('Content-disposition', `attachment; filename=group-${safeName}.csv`);
+      res.setHeader('Content-type', 'text/csv');
+      res.write(csvStr);
+      return res.end();
+    }
+    
+    if (format === 'xlsx') {
+      const writeXlsxFile = require('write-excel-file/node');
+      const data = [];
+      if (headers.length > 0) {
+        data.push(headers.map(h => ({ type: String, value: String(h), fontWeight: 'bold' })));
+        for (const row of rows) {
+          data.push(headers.map(h => {
+             let val = row[h];
+             if (val == null) return { type: String, value: '' };
+             if (typeof val === 'number') return { type: Number, value: val };
+             if (typeof val === 'boolean') return { type: Boolean, value: val };
+             return { type: String, value: String(val) };
+          }));
+        }
+      } else {
+        data.push([{ type: String, value: 'Empty', fontWeight: 'bold' }]);
+      }
+      const buf = await writeXlsxFile(data).toBuffer();
+      res.setHeader('Content-disposition', `attachment; filename=group-${safeName}.xlsx`);
+      res.setHeader('Content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      return res.end(buf);
     }
     
     sendError(res, 'Invalid format requested');

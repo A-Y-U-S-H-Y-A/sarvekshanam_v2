@@ -168,39 +168,19 @@ class CommandService extends EventEmitter {
         let finalError = '';
 
         const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop(); // Keep the incomplete line
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const dataStr = line.substring(6);
-                if (!dataStr) continue;
-                const event = JSON.parse(dataStr);
-                
-                if (event.type === 'stdout') {
-                  stdout += event.line + '\n';
-                } else if (event.type === 'stderr') {
-                  stderr += event.line + '\n';
-                } else if (event.type === 'error') {
-                  finalError = event.error;
-                } else if (event.type === 'done') {
-                  finalExitCode = event.exit_code || 0;
-                }
-              } catch (e) {
-                console.error('Error parsing SSE data chunk:', e.message);
-              }
-            }
+        const { parseSSEStream } = require('../utils/sseParser');
+        
+        await parseSSEStream(reader, (event) => {
+          if (event.type === 'stdout') {
+            stdout += (event.line !== undefined ? event.line : '') + '\n';
+          } else if (event.type === 'stderr') {
+            stderr += (event.line !== undefined ? event.line : '') + '\n';
+          } else if (event.type === 'error') {
+            finalError = event.error;
+          } else if (event.type === 'done') {
+            finalExitCode = event.exit_code || 0;
           }
-        }
+        });
 
         const status = (finalExitCode === 0 && !finalError) ? 'executed' : 'failed';
         const error = finalError || (finalExitCode !== 0 ? `Process exited with code ${finalExitCode}\n${stderr}` : stderr || null);

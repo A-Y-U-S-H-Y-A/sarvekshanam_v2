@@ -729,6 +729,22 @@ body {
   white-space: nowrap;
 }
 
+.spinner-inline {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin-inline 0.75s linear infinite;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+@keyframes spin-inline {
+  to { transform: rotate(360deg); }
+}
+
 .btn-primary {
   background: var(--amber);
   color: var(--bg);
@@ -2175,4 +2191,156 @@ textarea.input { resize: vertical; min-height: 120px; }
   height: 1px;
   background: var(--border);
   margin: 20px 0;
+}
+
+/* --- UX Compliance Styles --- */
+
+/* 1. Required Asterisk */
+.required-asterisk {
+  color: var(--accent-red);
+}
+
+/* 2. Validation / Invalid state */
+.input:invalid, .input.invalid, .select-styled:invalid, .select-styled.invalid {
+  border-color: var(--accent-red) !important;
+  background-color: rgba(255, 60, 60, 0.05);
+}
+
+/* 3. Inline Errors */
+.inline-error {
+  color: var(--accent-red);
+  font-size: 0.75rem;
+  margin-top: 4px;
+  display: block;
+  font-weight: 500;
+}
+
+/* 4. Password Checklist */
+.password-checklist {
+  background: var(--bg-3);
+  padding: 8px 12px;
+  margin-top: 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--fg-4);
+}
+.password-checklist .req {
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+}
+.password-checklist .req::before {
+  content: '○';
+  margin-right: 6px;
+  color: var(--fg-4);
+}
+.password-checklist .req.met {
+  color: var(--green);
+}
+.password-checklist .req.met::before {
+  content: '✓';
+  color: var(--green);
+}
+
+/* 5. Custom Tooltips (data-tooltip) */
+[data-tooltip] {
+  position: relative;
+  cursor: help;
+}
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  background: var(--bg-3);
+  color: var(--fg-1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  border: 1px solid var(--border);
+  z-index: 100;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  [data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* Mobile Icon Text (Section 6) */
+.nav-tab-text {
+  display: inline-block;
+}
+@media (max-width: 768px) {
+  /* On mobile, icons show text permanently, tooltip is hidden */
+  [data-tooltip]::after {
+    display: none !important;
+  }
+  .nav-tab-icon {
+    margin-right: 6px;
+  }
+}
+
+/* 6. Empty States Enhancements */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+}
+.gamified-instructions {
+  margin-top: 24px;
+  text-align: left;
+  background: var(--bg-3);
+  padding: 16px;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 400px;
+}
+.instruction-step {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.instruction-step:last-child {
+  margin-bottom: 0;
+}
+.step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--primary);
+  color: var(--bg-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  margin-right: 12px;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+.step-text {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+}
+.goal-achieved {
+  color: var(--green);
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+
+/* 7. Skeleton / Loading */
+.skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
 }

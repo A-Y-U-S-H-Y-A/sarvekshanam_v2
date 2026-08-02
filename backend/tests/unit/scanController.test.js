@@ -44,7 +44,9 @@ describe('ScanController Unit Tests', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
       send: jest.fn(),
-      setHeader: jest.fn()
+      setHeader: jest.fn(),
+      write: jest.fn(),
+      end: jest.fn()
     };
     next = jest.fn();
     jest.clearAllMocks();
@@ -148,7 +150,8 @@ describe('ScanController Unit Tests', () => {
       mockSvc.getByGroupId.mockResolvedValue([{ id: 's1', userId: 1, results: { vulns: [{ title: 'XSS' }] } }]);
       await scanController.exportGroup(req, res, next);
       expect(res.setHeader).toHaveBeenCalled();
-      expect(res.send).toHaveBeenCalled();
+      expect(res.write).toHaveBeenCalled();
+      expect(res.end).toHaveBeenCalled();
     });
   });
 });

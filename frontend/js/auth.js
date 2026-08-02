@@ -72,6 +72,8 @@ const Auth = (() => {
     document.getElementById('auth-submit').textContent = 'Login';
     document.getElementById('auth-password').setAttribute('autocomplete', 'current-password');
     clearError();
+    const pwd = document.getElementById('auth-password');
+    if (pwd) pwd.dispatchEvent(new Event('input'));
   }
 
   function showRegister() {
@@ -81,6 +83,8 @@ const Auth = (() => {
     document.getElementById('auth-submit').textContent = 'Create Account';
     document.getElementById('auth-password').setAttribute('autocomplete', 'new-password');
     clearError();
+    const pwd = document.getElementById('auth-password');
+    if (pwd) pwd.dispatchEvent(new Event('input'));
   }
 
   async function submit(e) {
@@ -138,5 +142,12 @@ const Auth = (() => {
     window.location.href = '/auth/oidc';
   }
 
-  return { init, submit, logout, showLogin, showRegister, getUser, getToken, loginSSO, setRedirectRoute, getRedirectRoute };
+  // Setup validation on load
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof FormUtils !== 'undefined') FormUtils.setupValidation('auth-form');
+  });
+
+  function getMode() { return _mode; }
+
+  return { init, submit, logout, showLogin, showRegister, getUser, getToken, loginSSO, setRedirectRoute, getRedirectRoute, getMode };
 })();

@@ -116,7 +116,14 @@ const Appointments = (() => {
     if (!listEl) return;
 
     if (_appointments.length === 0) {
-      listEl.innerHTML = '<p style="padding:14px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;" style="grid-column:1/-1;padding:16px;">No appointments found. Create one to begin.</p>';
+      listEl.innerHTML = `
+        <div class="empty-state-layout">
+          <div class="icon" style="font-size:3rem;margin-bottom:10px;">🎉</div>
+          <h3 style="margin-bottom:8px;">No appointments yet!</h3>
+          <p style="margin-bottom:16px;">Everything is running perfectly. Create your first appointment context to organize your scans.</p>
+          <button class="btn btn-primary" onclick="Appointments.showCreateModal()">Create Appointment</button>
+        </div>
+      `;
       return;
     }
 
@@ -127,7 +134,7 @@ const Appointments = (() => {
           <span class="status-badge">${Utils.escHtml(a.mode)}</span>
         </div>
         <div class="appt-meta">
-          <span>📅 ${_relTime(a.createdAt)}</span>
+          <span>📅 ${Utils.relTime(a.createdAt)}</span>
         </div>
         <div style="display:flex;gap:6px;padding-top:10px;border-top:1px solid var(--border);margin-top:auto;">
           <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="Appointments.viewDetail('${_escInline(a.id)}')">View</button>
@@ -140,13 +147,25 @@ const Appointments = (() => {
 
   async function deleteAppointment(id) {
     if (!(await Dialog.confirm('Are you sure you want to delete this appointment? It will be moved to Trash.'))) return;
+    
+    // Optimistic rendering
+    const originalAppointments = [..._appointments];
+    const originalActive = _activeId;
+    
+    _appointments = _appointments.filter(a => a.id !== id);
+    if (_activeId === id) setActive(_appointments[0]?.id || null);
+    renderList();
+    
     try {
       await API.appointments.delete(id);
       showToast('Appointment moved to Trash');
-      if (_activeId === id) setActive(null);
-      await fetchAll();
     } catch (err) {
-      showToast('Failed to delete appointment: ' + err.message, 'error');
+      // Rollback
+      _appointments = originalAppointments;
+      setActive(originalActive);
+      renderList();
+      if (typeof window.showError === 'function') window.showError(err);
+      else showToast('Failed to delete appointment: ' + err.message, 'error');
     }
   }
 
@@ -184,7 +203,7 @@ const Appointments = (() => {
         chatsList.innerHTML = chats.map(c => `
           <div style="padding:10px 12px;border:1px solid var(--border);background:var(--bg-3);margin-bottom:6px;display:flex;flex-direction:column;gap:6px;">
             <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--fg-2);">${Utils.escHtml(c.provider)} — ${Utils.escHtml(c.model)}</div>
-            <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);">${_relTime(c.createdAt)}</div>
+            <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);">${Utils.relTime(c.createdAt)}</div>
           </div>
         `).join('');
       }
@@ -208,14 +227,7 @@ const Appointments = (() => {
       .replace(/\r/g, '\\r');
   }
 
-  function _relTime(iso) {
-    if (!iso) return '';
-    const diff = (Date.now() - new Date(iso)) / 1000;
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return new Date(iso).toLocaleDateString();
-  }
+
 
   // Create one on init if none exists? No, changed to just select first.
   async function createNew() {

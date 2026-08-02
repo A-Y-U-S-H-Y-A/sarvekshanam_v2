@@ -28,20 +28,43 @@ const API = (() => {
       console.error('API Error: Failed to parse JSON response:', err);
       return { success: false, error: { message: res.statusText } };
     });
-    if (!data.success) throw Object.assign(new Error(data.error?.message || 'Request failed'), { status: res.status, data });
+    if (!data.success) {
+      const what = "The operation failed.";
+      const why = data.error?.message || 'An unexpected system error occurred.';
+      const isSystem = res.status >= 500 || !data.error?.message;
+      const next = isSystem ? "Please try again later or contact support." : "Please verify your input and try again.";
+      
+      const structuredMessage = `${what}\nWhy: ${why}\nNext steps: ${next}`;
+      throw Object.assign(new Error(structuredMessage), { 
+        status: res.status, 
+        data, 
+        isSystem,
+        what, why, next
+      });
+    }
     return data.data;
   }
 
   async function _downloadFileRoute(path, defaultFilename) {
-    const res = await fetch(`${BASE}${path}`, { headers: headers() });
-    if (!res.ok) throw new Error('Failed to export data');
-    const blob = await res.blob();
-    let filename = defaultFilename;
-    const disp = res.headers.get('content-disposition');
-    if (disp && disp.includes('filename=')) {
-      filename = disp.split('filename=')[1].replace(/"/g, '');
+    try {
+      const res = await fetch(`${BASE}/auth/download-token`, { headers: headers() });
+      if (!res.ok) throw new Error('Failed to get download token');
+      const json = await res.json();
+      const token = json.data.token;
+      
+      const char = path.includes('?') ? '&' : '?';
+      const downloadUrl = `${BASE}${path}${char}token=${token}`;
+      
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = defaultFilename || '';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      console.error(e);
+      if (typeof showToast !== 'undefined') showToast('Failed to export data', 'error');
     }
-    _downloadBlob(blob, filename);
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────

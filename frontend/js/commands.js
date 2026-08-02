@@ -102,7 +102,7 @@ const Commands = (() => {
             <span class="cmd-command" style="margin:0;" title="${Utils.escHtml(c.command)}">${Utils.escHtml(c.command)}</span>
             <span class="status-badge status-${c.status}">${c.status}</span>
           </div>
-          <span class="cmd-meta">${_relTime(c.requestedAt)}</span>
+          <span class="cmd-meta">${Utils.relTime(c.requestedAt)}</span>
         </div>
         <div class="cmd-meta">by ${Utils.escHtml(c.username)}${c.resolvedBy ? ` · resolved by ${Utils.escHtml(c.resolvedBy)}` : ''}</div>
         ${reasonHtml}
@@ -140,14 +140,7 @@ const Commands = (() => {
 
   
 
-  function _relTime(iso) {
-    if (!iso) return '';
-    const diff = (Date.now() - new Date(iso)) / 1000;
-    if (diff < 60)    return 'just now';
-    if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return new Date(iso).toLocaleDateString();
-  }
+
 
   return { init, submit, filter, refresh, approve, rejectPrompt };
 })();

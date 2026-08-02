@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/placeholder-loading/dist/css/placeholder-loading.min.css">
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
 <body>
@@ -56,12 +57,17 @@
 
         <form id="auth-form" onsubmit="Auth.submit(event)">
           <div class="field">
-            <label for="auth-username">Username</label>
+            <label for="auth-username">Username <span class="required-asterisk">*</span></label>
             <input id="auth-username" type="text" placeholder="Enter username" autocomplete="username" required />
           </div>
           <div class="field">
-            <label for="auth-password">Password</label>
+            <label for="auth-password">Password <span class="required-asterisk">*</span></label>
             <input id="auth-password" type="password" placeholder="Enter password" autocomplete="current-password" required />
+            <div id="password-requirements" class="hidden password-checklist">
+              <div class="req req-length">At least 8 characters</div>
+              <div class="req req-upper">One uppercase letter</div>
+              <div class="req req-number">One number</div>
+            </div>
           </div>
           <div id="auth-error" class="hidden"></div>
           <button type="submit" id="auth-submit" class="auth-submit">
@@ -93,35 +99,35 @@
       </div>
 
       <div class="nav-tabs">
-        <button id="tab-power" class="nav-tab active" onclick="App.switchTab('power')" title="Power User">
-          <span class="nav-tab-icon">⬡</span> Power User
+        <button id="tab-power" class="nav-tab active" onclick="App.switchTab('power')" data-tooltip="Power User">
+          <span class="nav-tab-icon">⬡</span> <span class="nav-tab-text">Power User</span>
         </button>
-        <button id="tab-ai" class="nav-tab" onclick="App.switchTab('ai')" title="AI Chat">
-          <span class="nav-tab-icon">◆</span> AI Chat
+        <button id="tab-ai" class="nav-tab" onclick="App.switchTab('ai')" data-tooltip="AI Chat">
+          <span class="nav-tab-icon">◆</span> <span class="nav-tab-text">AI Chat</span>
         </button>
-        <button id="tab-bulk" class="nav-tab" onclick="App.switchTab('bulk')" title="Bulk Scan">
-          <span class="nav-tab-icon">≡</span> Bulk Scan
+        <button id="tab-bulk" class="nav-tab" onclick="App.switchTab('bulk')" data-tooltip="Bulk Scan">
+          <span class="nav-tab-icon">≡</span> <span class="nav-tab-text">Bulk Scan</span>
         </button>
-        <button id="tab-appointments" class="nav-tab" onclick="App.switchTab('appointments')" title="Appointments">
-          <span class="nav-tab-icon">◉</span> Appointments
+        <button id="tab-appointments" class="nav-tab" onclick="App.switchTab('appointments')" data-tooltip="Appointments">
+          <span class="nav-tab-icon">◉</span> <span class="nav-tab-text">Appointments</span>
         </button>
-        <button id="tab-runners" class="nav-tab" onclick="App.switchTab('runners')" title="Remote Runners">
-          <span class="nav-tab-icon">⌘</span> Runners
+        <button id="tab-runners" class="nav-tab" onclick="App.switchTab('runners')" data-tooltip="Remote Runners">
+          <span class="nav-tab-icon">⌘</span> <span class="nav-tab-text">Runners</span>
         </button>
-        <button id="tab-cmd" class="nav-tab" onclick="App.switchTab('cmd')" title="Commands">
-          <span class="nav-tab-icon">$</span> Commands
+        <button id="tab-cmd" class="nav-tab" onclick="App.switchTab('cmd')" data-tooltip="Commands">
+          <span class="nav-tab-icon">$</span> <span class="nav-tab-text">Commands</span>
         </button>
-        <button id="tab-trash" class="nav-tab admin-only" onclick="App.switchTab('trash')" title="Trash" data-admin="true">
-          <span class="nav-tab-icon">🗑️</span> Trash
+        <button id="tab-trash" class="nav-tab admin-only" onclick="App.switchTab('trash')" data-tooltip="Trash" data-admin="true">
+          <span class="nav-tab-icon">🗑️</span> <span class="nav-tab-text">Trash</span>
         </button>
       </div>
 
       <div class="nav-right">
         <!-- Appointment selector -->
-        <select id="appointment-selector" onchange="Appointments.setActive(this.value)" title="Active context"></select>
+        <select id="appointment-selector" onchange="Appointments.setActive(this.value)" data-tooltip="Active context"></select>
 
         <!-- WS status -->
-        <div id="ws-indicator" title="WebSocket status">
+        <div id="ws-indicator" data-tooltip="WebSocket status">
           <span class="ws-dot disconnected" id="ws-dot"></span>
           <span id="ws-label" class="ws-label" style="display:none;">Connecting…</span>
         </div>
@@ -132,7 +138,7 @@
         <div id="session-badge" class="hidden" style="display:none !important;"><span id="session-badge-name"></span></div>
 
         <!-- Settings (admin) -->
-        <button class="nav-icon-btn" id="btn-settings" onclick="App.showSettings()" title="Settings" data-admin>⚙</button>
+        <button class="nav-icon-btn" id="btn-settings" onclick="App.showSettings()" data-tooltip="Settings" data-admin>⚙</button>
 
         <!-- User menu -->
         <div id="user-menu" onclick="App.toggleUserMenu()">
@@ -196,17 +202,32 @@
           </div>
 
           <div class="module-action-bar">
-            <button class="btn btn-primary btn-lg" onclick="PowerUser.runScan()">▶ Run Scan</button>
+            <button class="btn btn-primary btn-lg" onclick="Utils.withLoading(this, PowerUser.runScan())" data-unknown-progress="true">▶ Run Scan</button>
             <button class="btn btn-secondary" onclick="PowerUser.addToBulk()">+ Add to Bulk</button>
             <button class="btn btn-ghost" style="margin-left:auto;" onclick="PowerUser.clearConsole()">Clear</button>
           </div>
         </div>
 
         <!-- Empty state -->
-        <div id="module-empty">
+        <div id="module-empty" class="empty-state">
           <div class="empty-icon">⬡</div>
-          <div class="empty-title">Select a Module</div>
-          <div class="empty-sub">Choose a module from the left panel to configure and run scans.</div>
+          <div class="empty-title">Select a Module to Begin</div>
+          <div class="empty-sub">Everything is working correctly. You're ready to start exploring modules.</div>
+          
+          <div class="gamified-instructions">
+            <div class="instruction-step">
+              <div class="step-num">1</div>
+              <div class="step-text">Search or select a module from the left panel.</div>
+            </div>
+            <div class="instruction-step">
+              <div class="step-num">2</div>
+              <div class="step-text">Configure the target and parameters.</div>
+            </div>
+            <div class="instruction-step">
+              <div class="step-num">3</div>
+              <div class="step-text">Run the scan and view results here.</div>
+            </div>
+          </div>
         </div>
 
         <!-- Results Console -->
@@ -235,6 +256,7 @@
                 <option value="global">Global</option>
               </select>
               <button class="btn btn-ghost btn-sm" onclick="PowerUser.refreshSessions()">Refresh</button>
+              <button class="btn btn-primary btn-sm" onclick="HistoryModal.show()">View Full History</button>
             </div>
           </div>
           <div id="session-list">
@@ -332,12 +354,12 @@
 
               <div class="field-group">
                 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:4px;">
-                  <label class="input-label" style="margin:0;">Targets <span style="text-transform:none;letter-spacing:0;color:var(--fg-4);font-style:italic;">(one per line or comma-separated)</span></label>
+                  <label class="input-label" style="margin:0;">Targets <span class="required-asterisk">*</span> <span style="text-transform:none;letter-spacing:0;color:var(--fg-4);font-style:italic;">(one per line or comma-separated)</span></label>
                   <div style="display:flex;gap:6px;">
                     <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bulk-file-upload').click()">📁 Upload CSV/Excel</button>
                     <input type="file" id="bulk-file-upload" accept=".csv, .xlsx, .xls" style="display:none;" onchange="BulkScan.handleFileUpload(event)" />
-                    <button class="btn btn-ghost btn-sm" onclick="BulkScan.downloadTargets('csv')" title="Download targets as CSV">⬇️ CSV</button>
-                    <button class="btn btn-ghost btn-sm" onclick="BulkScan.downloadTargets('xlsx')" title="Download targets as Excel">⬇️ Excel</button>
+                    <button class="btn btn-ghost btn-sm" onclick="BulkScan.downloadTargets('csv')" data-tooltip="Download targets as CSV">⬇️ CSV</button>
+                    <button class="btn btn-ghost btn-sm" onclick="BulkScan.downloadTargets('xlsx')" data-tooltip="Download targets as Excel">⬇️ Excel</button>
                   </div>
                 </div>
                 <textarea id="bulk-targets" class="input" style="min-height:130px;resize:vertical;" placeholder="192.168.1.1&#10;192.168.1.2&#10;10.0.0.0/24"></textarea>
@@ -395,7 +417,7 @@
               </div>
 
               <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;">
-                <button class="btn btn-primary btn-lg" onclick="BulkScan.run()">▶ Start Bulk Scan</button>
+                <button class="btn btn-primary btn-lg" onclick="Utils.withLoading(this, BulkScan.run())" data-unknown-progress="true">▶ Start Bulk Scan</button>
                 <span id="bulk-count-badge" style="font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);">0 targets, 0 modules</span>
               </div>
 
@@ -407,7 +429,10 @@
           <div class="card" style="position:sticky;top:0;">
             <div class="card-header">
               <span class="card-title">Progress</span>
-              <button class="btn btn-ghost btn-sm" onclick="BulkScan.refresh()">Refresh</button>
+              <div style="display:flex; gap: 8px;">
+                <button class="btn btn-ghost btn-sm" onclick="Utils.withLoading(this, BulkScan.refresh())">Refresh</button>
+                <button class="btn btn-primary btn-sm" onclick="HistoryModal.show()">View Full History</button>
+              </div>
             </div>
             <div id="bulk-progress-list" style="min-height:120px;background:var(--bg-3);">
               <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">No bulk scans running.</p>
@@ -434,7 +459,7 @@
             <div style="display:flex;gap:10px;align-items:center;">
               <input id="cmd-input" type="text" class="input" placeholder="Enter command (e.g. nmap -sV 192.168.1.1)"
                 onkeydown="if(event.key==='Enter')Commands.submit()" style="flex:1;" />
-              <button class="btn btn-primary" onclick="Commands.submit()">Submit</button>
+              <button class="btn btn-primary" onclick="Utils.withLoading(this, Commands.submit())" data-unknown-progress="true">Submit</button>
             </div>
           </div>
         </div>
@@ -451,7 +476,7 @@
                 <option value="executed">Executed</option>
                 <option value="failed">Failed</option>
               </select>
-              <button class="btn btn-ghost btn-sm" onclick="Commands.refresh()">Refresh</button>
+              <button class="btn btn-ghost btn-sm" onclick="Utils.withLoading(this, Commands.refresh())">Refresh</button>
             </div>
           </div>
           <div id="cmd-list" style="background:var(--bg-3);">
@@ -472,7 +497,7 @@
                 <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);margin-top:2px;">Manage distributed Go execution nodes.</div>
               </div>
               <div style="display:flex;gap:8px;">
-                <button class="btn btn-ghost btn-sm" onclick="Runners.load()">Check Status</button>
+                <button class="btn btn-ghost btn-sm" onclick="Utils.withLoading(this, Runners.load())">Check Status</button>
                 <button class="btn btn-primary btn-sm" onclick="Runners.showAddModal()">+ Add Runner</button>
               </div>
             </div>
@@ -508,7 +533,7 @@
               <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);margin-top:2px;">Manage scan contexts and AI chat histories.</div>
             </div>
             <div style="display:flex;gap:8px;">
-              <button class="btn btn-ghost btn-sm" onclick="Appointments.fetchAll()">Refresh</button>
+              <button class="btn btn-ghost btn-sm" onclick="Utils.withLoading(this, Appointments.fetchAll())">Refresh</button>
               <button class="btn btn-primary btn-sm" onclick="Appointments.showCreateModal()">+ New Appointment</button>
             </div>
           </div>
@@ -549,12 +574,20 @@
               <div class="card-title">Trash</div>
               <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);margin-top:2px;">Soft-deleted items · auto-erased after 1 hour.</div>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="trashManager.loadTrash()">Refresh</button>
+            <button class="btn btn-ghost btn-sm" onclick="Utils.withLoading(this, trashManager.loadTrash())">Refresh</button>
           </div>
           <div id="trash-container" style="padding:14px;background:var(--bg-3);">
             <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Loading trash…</p>
           </div>
         </div>
+      </div>
+    <!-- ── Panel: 404 Error ──────────────────────────────────────────────── -->
+    <section id="panel-404" class="panel hidden">
+      <div class="empty-state" style="margin: 10vh auto;">
+        <div class="empty-icon" style="color:var(--accent-red);font-size:3rem;margin-bottom:20px;">⚠️</div>
+        <div class="empty-title" style="font-size:1.8rem;margin-bottom:10px;">Page Not Found</div>
+        <div class="empty-sub" style="margin-bottom:20px;">The screen you're looking for doesn't exist or you don't have access.<br>This is a client error (invalid URL).</div>
+        <button class="btn btn-primary" onclick="App.switchTab('power')">Return to Main Dashboard</button>
       </div>
     </section>
 
@@ -616,11 +649,11 @@
       </div>
       <form id="add-runner-form" onsubmit="Runners.submitAddForm(event)">
         <div class="field-group">
-          <label class="input-label">Runner Name</label>
+          <label class="input-label">Runner Name <span class="required-asterisk">*</span></label>
           <input id="runner-name-input" type="text" class="input" placeholder="e.g. Edge Node EU" required />
         </div>
         <div class="field-group">
-          <label class="input-label">Runner URL</label>
+          <label class="input-label">Runner URL <span class="required-asterisk">*</span></label>
           <input id="runner-url-input" type="url" class="input" placeholder="http://192.168.1.10:8080" required />
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--border);">
@@ -640,12 +673,12 @@
       </div>
       <form id="new-appointment-form" onsubmit="Appointments.submitCreate(event)">
         <div class="field-group">
-          <label class="input-label">Appointment Name</label>
+          <label class="input-label">Appointment Name <span class="required-asterisk">*</span></label>
           <input id="appt-name-input" type="text" class="input" placeholder="e.g. Audit Q3" required />
         </div>
         <div class="field-group">
-          <label class="input-label">Mode</label>
-          <select id="appt-mode-input" class="select-styled" style="width:100%;">
+          <label class="input-label">Mode <span class="required-asterisk">*</span></label>
+          <select id="appt-mode-input" class="select-styled" style="width:100%;" required>
             <option value="hybrid">Hybrid (Manual + AI)</option>
             <option value="manual">Manual Only</option>
             <option value="automated">AI Automated</option>
@@ -660,7 +693,7 @@
   </div>
 
   <!-- ── Bulk Scan Details Modal ──────────────────────────────────────────── -->
-  <div id="bulk-scan-details-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;">
+  <div id="bulk-scan-details-modal" class="hidden" style="position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;">
     <div class="modal-box" style="width:600px; max-width:90vw;">
       <div class="modal-header">
         <span class="modal-title" id="bulk-scan-details-title">Bulk Scan Details</span>
@@ -668,7 +701,7 @@
       </div>
       
       <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
-        <span id="bulk-scan-details-stats" style="font-size:0.8rem;color:var(--fg-2);">0 / 0 completed</span>
+        <span id="bulk-scan-details-stats" style="font-size:0.8rem;color:var(--fg-2);">0 / 0 scans finished</span>
         <div class="bulk-progress-bar-wrap" style="width:200px;margin:0;">
           <div class="bulk-progress-bar-fill" id="bulk-scan-details-progress-bar" style="width:0%;"></div>
         </div>
@@ -709,6 +742,43 @@
     </div>
   </div>
 
+  <!-- ── History Modal ──────────────────────────────────────────── -->
+  <div id="history-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;">
+    <div class="modal-box" style="width:800px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column;">
+      <div class="modal-header">
+        <span class="modal-title">Scans History</span>
+        <div style="display:flex; gap:8px;">
+            <select id="history-filter-mode" class="select-styled" style="padding:2px 8px; font-size:0.75rem;" onchange="HistoryModal.load(1)">
+                <option value="">All Types</option>
+                <option value="single">Normal Scans</option>
+                <option value="bulk">Bulk Scans</option>
+            </select>
+            <select id="history-filter-status" class="select-styled" style="padding:2px 8px; font-size:0.75rem;" onchange="HistoryModal.load(1)">
+                <option value="">All Statuses</option>
+                <option value="completed">Completed</option>
+                <option value="running">Running</option>
+                <option value="failed">Failed</option>
+                <option value="pending">Pending</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="HistoryModal.hide()">✕</button>
+        </div>
+      </div>
+      
+      <div id="history-list-container" style="background:var(--bg-3);padding:10px;border-radius:4px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px;margin-bottom:12px;min-height:300px;">
+        <p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Loading history...</p>
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--border);">
+        <div style="display:flex;gap:4px;align-items:center;">
+          <button class="btn btn-ghost btn-sm" id="history-page-prev" onclick="HistoryModal.prevPage()">◀ Prev</button>
+          <span id="history-page-info" style="font-family:var(--font-mono);font-size:0.75rem;color:var(--fg-4);">Page 1</span>
+          <button class="btn btn-ghost btn-sm" id="history-page-next" onclick="HistoryModal.nextPage()">Next ▶</button>
+        </div>
+        <button class="btn btn-ghost" onclick="HistoryModal.hide()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="/js/utils.js"></script>
   <script src="/js/api.js"></script>
@@ -723,6 +793,7 @@
   <script src="/js/appointments.js"></script>
   <script src="/js/runners.js"></script>
   <script src="/js/trash.js"></script>
+  <script src="/js/historyModal.js"></script>
   <script src="/js/main.js"></script>
   
   <!-- ── Global Custom Dialog Modal ─────────────────────────────────────── -->

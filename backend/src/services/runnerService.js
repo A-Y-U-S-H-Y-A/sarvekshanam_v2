@@ -203,46 +203,24 @@ class RunnerService {
         let finalError = '';
         let sandboxId = '';
         let generatedFiles = [];
-
         const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop(); // Keep the incomplete line
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const dataStr = line.substring(6);
-                if (!dataStr) continue;
-                const event = JSON.parse(dataStr);
-                
-                if (event.type === 'stdout') {
-                  stdout += (event.line !== undefined ? event.line : '') + '\n';
-                } else if (event.type === 'stderr') {
-                  stderr += (event.line !== undefined ? event.line : '') + '\n';
-                } else if (event.type === 'error') {
-                  finalError = event.error;
-                } else if (event.type === 'done') {
-                  finalExitCode = event.exit_code || 0;
-                  if (event.sandbox_id) sandboxId = event.sandbox_id;
-                  if (event.files) generatedFiles = event.files;
-                }
-                
-                if (onEvent) onEvent(event);
-                
-              } catch (e) {
-                console.error('[RunnerService] Failed to parse SSE event:', e, line);
-              }
-            }
+        const { parseSSEStream } = require('../utils/sseParser');
+        
+        await parseSSEStream(reader, (event) => {
+          if (event.type === 'stdout') {
+            stdout += (event.line !== undefined ? event.line : '') + '\n';
+          } else if (event.type === 'stderr') {
+            stderr += (event.line !== undefined ? event.line : '') + '\n';
+          } else if (event.type === 'error') {
+            finalError = event.error;
+          } else if (event.type === 'done') {
+            finalExitCode = event.exit_code || 0;
+            if (event.sandbox_id) sandboxId = event.sandbox_id;
+            if (event.files) generatedFiles = event.files;
           }
-        }
+          
+          if (onEvent) onEvent(event);
+        });
         
         const result = { stdout, stderr };
         if (finalExitCode !== 0 || finalError) {
@@ -519,46 +497,26 @@ class RunnerService {
         }
 
       const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      const { parseSSEStream } = require('../utils/sseParser');
+      
+      await parseSSEStream(reader, (event) => {
+        const tgt = event.target;
+        if (!tgt || !resultsByTarget[tgt]) return;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // Keep the incomplete line
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const dataStr = line.substring(6);
-              if (!dataStr) continue;
-              const event = JSON.parse(dataStr);
-              
-              const tgt = event.target;
-              if (!tgt || !resultsByTarget[tgt]) continue;
-
-              if (event.type === 'stdout') {
-                resultsByTarget[tgt].stdout += (event.line !== undefined ? event.line : '') + '\n';
-              } else if (event.type === 'stderr') {
-                resultsByTarget[tgt].stderr += (event.line !== undefined ? event.line : '') + '\n';
-              } else if (event.type === 'error') {
-                resultsByTarget[tgt].error = event.error;
-              } else if (event.type === 'done') {
-                resultsByTarget[tgt].exitCode = event.exit_code || 0;
-                if (event.sandbox_id) resultsByTarget[tgt].sandboxId = event.sandbox_id;
-                if (event.files) resultsByTarget[tgt].files = event.files;
-              }
-
-              if (onEvent) onEvent(event);
-            } catch (e) {
-              console.error('[RunnerService] Failed to parse bulk SSE event:', e, line);
-            }
-          }
+        if (event.type === 'stdout') {
+          resultsByTarget[tgt].stdout += (event.line !== undefined ? event.line : '') + '\n';
+        } else if (event.type === 'stderr') {
+          resultsByTarget[tgt].stderr += (event.line !== undefined ? event.line : '') + '\n';
+        } else if (event.type === 'error') {
+          resultsByTarget[tgt].error = event.error;
+        } else if (event.type === 'done') {
+          resultsByTarget[tgt].exitCode = event.exit_code || 0;
+          if (event.sandbox_id) resultsByTarget[tgt].sandboxId = event.sandbox_id;
+          if (event.files) resultsByTarget[tgt].files = event.files;
         }
-      }
+
+        if (onEvent) onEvent(event);
+      });
 
       // Convert map to array and format errors
       const results = Object.values(resultsByTarget);

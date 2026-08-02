@@ -20,8 +20,8 @@ router.post('/register', async (req, res, next) => {
     if (username.length < 3) {
       return res.status(400).json({ success: false, error: { message: 'username must be at least 3 characters' } });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, error: { message: 'password must be at least 6 characters' } });
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ success: false, error: { message: 'password must be at least 8 characters, contain one uppercase letter, and one number' } });
     }
 
     const { User } = getDb();
@@ -133,6 +133,23 @@ router.get('/oidc/callback', (req, res, next) => {
     );
 
     return res.redirect(`${config.frontendUrl}?oidc_token=${token}`);
+  })(req, res, next);
+});
+
+// ── GET /auth/download-token ─────────────────────────────────────────────────
+// Returns a short-lived token for authenticating native browser file downloads
+router.get('/download-token', (req, res, next) => {
+  passport.authenticate('jwt', { session: false }, (err, user) => {
+    if (err)   return next(err);
+    if (!user) return res.status(401).json({ success: false, error: { message: 'Unauthorized' } });
+
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      config.jwtSecret,
+      { expiresIn: '60s' } // Short lived!
+    );
+
+    return res.json({ success: true, data: { token } });
   })(req, res, next);
 });
 

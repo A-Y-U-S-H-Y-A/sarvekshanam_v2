@@ -3,25 +3,45 @@ const config = require('../config');
 
 const skipIfTest = () => config.isTest();
 
-// General API rate limiter
+// Key generator: tracks by req.user.id if authenticated, otherwise req.ip
+const keyGenerator = (req, res) => {
+  return req.user ? req.user.id : rateLimit.ipKeyGenerator(req, res);
+};
+
+// General API rate limiter (generous)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  max: 1000, 
+  standardHeaders: true, 
+  legacyHeaders: false, 
   skip: skipIfTest,
+  keyGenerator,
   message: {
     error: 'Too many requests, please try again later.',
+  },
+});
+
+// Heavy operations rate limiter (stricter for exports, bulk processing)
+const heavyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // Limit each user to 30 heavy ops per 15 mins
+  standardHeaders: true, 
+  legacyHeaders: false, 
+  skip: skipIfTest,
+  keyGenerator,
+  message: {
+    error: 'Too many heavy operations requested, please try again later.',
   },
 });
 
 // Stricter rate limiter for authentication routes
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // Limit each IP to 20 requests per `window` (here, per hour)
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  max: 20, 
+  standardHeaders: true, 
+  legacyHeaders: false, 
   skip: skipIfTest,
+  keyGenerator,
   message: {
     error: 'Too many authentication attempts, please try again after an hour.',
   },
@@ -29,5 +49,6 @@ const authLimiter = rateLimit({
 
 module.exports = {
   apiLimiter,
+  heavyLimiter,
   authLimiter,
 };

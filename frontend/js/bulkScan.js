@@ -237,8 +237,27 @@ const BulkScan = (() => {
     const moduleIds = _checkedModules();
     const name      = document.getElementById('bulk-name').value.trim();
 
-    if (!targets.length)   { showToast('Enter at least one target', 'error'); return; }
-    if (!moduleIds.length) { showToast('Select at least one module', 'error'); return; }
+    // Clear previous inline errors
+    document.querySelectorAll('.inline-error').forEach(e => e.remove());
+    document.querySelectorAll('.invalid').forEach(e => e.classList.remove('invalid'));
+
+    if (!targets.length) {
+      const ta = document.getElementById('bulk-targets');
+      ta.classList.add('invalid');
+      const err = document.createElement('span');
+      err.className = 'inline-error';
+      err.textContent = 'Please enter at least one target.';
+      ta.parentNode.insertBefore(err, ta.nextSibling);
+      return;
+    }
+    if (!moduleIds.length) {
+      const container = document.getElementById('bulk-modules');
+      const err = document.createElement('span');
+      err.className = 'inline-error';
+      err.textContent = 'Please select at least one module.';
+      container.parentNode.insertBefore(err, container.nextSibling);
+      return;
+    }
 
     const runnerId = document.getElementById('bulk-runner-select')?.value;
     const proxyMode = document.getElementById('bulk-proxy-mode')?.value;
@@ -304,13 +323,16 @@ const BulkScan = (() => {
     }
   }
 
-  async function refresh() {
+  const refresh = Utils.debounce(async () => {
     try {
-      const data = await API.scans.list({ limit: 50 });
-      const bulk = (data.sessions || []).filter(s => s.mode === 'bulk');
+      const data = await API.scans.list({ mode: 'bulk', limit: 10, grouped: 'true' });
+      const bulk = data.sessions || [];
       renderProgress(bulk);
-    } catch (refreshErr) { console.warn('Failed to refresh bulk scan list:', refreshErr.message); }
-  }
+    } catch (refreshErr) { 
+      if (typeof window.showError === 'function') window.showError(refreshErr);
+      else showToast('Failed to refresh bulk scan list: ' + refreshErr.message, 'error'); 
+    }
+  }, 300);
 
   // ── Progress UI ───────────────────────────────────────────────────────────
 
@@ -350,7 +372,7 @@ const BulkScan = (() => {
     let completed = 0, failed = 0, running = 0;
     sessions.forEach(s => {
       if (s.status === 'completed') completed++;
-      else if (s.status === 'failed') failed++;
+      else if (s.status === 'failed' || s.status === 'failed_permanent' || s.status === 'cancelled') failed++;
       else if (s.status === 'running') running++;
     });
 
@@ -383,15 +405,15 @@ const BulkScan = (() => {
         </div>
         <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);">
           <span id="group-stats-${Utils.escHtml(gId)}">${done} / ${total} finished</span>
-          <span>${_relTime(sessions[0].createdAt)}</span>
+          <span>${Utils.relTime(sessions[0].createdAt)}</span>
         </div>
       </div>
     `;
   }
 
   function _progressItemHtml(s, options = {}) {
-    const pct = s.status === 'completed' ? 100 : s.status === 'running' ? 60 : s.status === 'failed' ? 100 : 0;
-    const barColor = s.status === 'failed' ? 'var(--accent-red)' : '';
+    const pct = s.status === 'completed' ? 100 : s.status === 'running' ? 60 : (s.status === 'failed' || s.status === 'failed_permanent' || s.status === 'cancelled') ? 100 : 0;
+    const barColor = (s.status === 'failed' || s.status === 'failed_permanent' || s.status === 'cancelled') ? 'var(--accent-red)' : '';
     
     let extras = '';
     if (s.runner_name) extras += `<span class="status-badge">🏃 ${Utils.escHtml(s.runner_name)}</span>`;
@@ -426,7 +448,7 @@ const BulkScan = (() => {
         </div>
         <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.65rem;color:var(--fg-4);">
           <span>${Utils.escHtml(s.moduleIds?.join(', '))}</span>
-          <span>${_relTime(s.createdAt)}</span>
+          <span>${Utils.relTime(s.createdAt)}</span>
         </div>
       </div>
     `;
@@ -459,11 +481,12 @@ const BulkScan = (() => {
     if (sessions.length === 1 && !sessions[0].groupId) {
        const el = document.getElementById(`bulk-sess-${sessions[0].id}`);
        if (!el) return;
-       const pct = sessions[0].status === 'completed' ? 100 : sessions[0].status === 'running' ? 60 : sessions[0].status === 'failed' ? 100 : 0;
+       const isFail = sessions[0].status === 'failed' || sessions[0].status === 'failed_permanent' || sessions[0].status === 'cancelled';
+       const pct = sessions[0].status === 'completed' ? 100 : sessions[0].status === 'running' ? 60 : isFail ? 100 : 0;
        const bar = document.getElementById(`bar-${sessions[0].id}`);
        if (bar) {
            bar.style.width = pct + '%';
-           bar.style.background = sessions[0].status === 'failed' ? 'var(--accent-red)' : '';
+           bar.style.background = isFail ? 'var(--accent-red)' : '';
        }
        const badge = el.querySelector('.status-badge');
        if (badge) {
@@ -476,7 +499,7 @@ const BulkScan = (() => {
     let completed = 0, failed = 0, running = 0;
     sessions.forEach(s => {
       if (s.status === 'completed') completed++;
-      else if (s.status === 'failed') failed++;
+      else if (s.status === 'failed' || s.status === 'failed_permanent' || s.status === 'cancelled') failed++;
       else if (s.status === 'running') running++;
     });
     
@@ -526,7 +549,7 @@ const BulkScan = (() => {
     let completed = 0, failed = 0;
     sessions.forEach(s => {
       if (s.status === 'completed') completed++;
-      else if (s.status === 'failed') failed++;
+      else if (s.status === 'failed' || s.status === 'failed_permanent' || s.status === 'cancelled') failed++;
     });
     
     const done = completed + failed;
@@ -540,7 +563,7 @@ const BulkScan = (() => {
       bar.style.background = barColor || '';
     }
     const stats = document.getElementById('bulk-scan-details-stats');
-    if (stats) stats.textContent = `${done} / ${total} completed`;
+    if (stats) stats.textContent = `${done} / ${total} scans finished`;
 
     const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
     if (_currentPage > totalPages) _currentPage = totalPages;
@@ -579,13 +602,7 @@ const BulkScan = (() => {
     }
   }
 
-  function _relTime(iso) {
-    if (!iso) return '';
-    const diff = (Date.now() - new Date(iso)) / 1000;
-    if (diff < 60)    return 'just now';
-    if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
-    return `${Math.floor(diff / 3600)}h ago`;
-  }
+
 
   function renderParams() {
     const section = document.getElementById('bulk-params-section');

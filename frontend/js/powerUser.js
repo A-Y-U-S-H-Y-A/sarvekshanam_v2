@@ -288,12 +288,12 @@ const PowerUser = (() => {
 
   // ── Utils ──────────────────────────────────────────────────────────────────
 
-  async function refreshSessions() {
+  const refreshSessions = Utils.debounce(async () => {
     const listEl = document.getElementById('session-list');
     const mode = document.getElementById('session-filter-mode')?.value || 'global';
     
     try {
-      const qs = new URLSearchParams({ limit: 10 });
+      const qs = new URLSearchParams({ limit: 10, grouped: 'true' });
       if (mode === 'appointment' && typeof Appointments !== 'undefined') {
         const activeAppt = Appointments.getActive();
         if (activeAppt) qs.set('appointmentId', activeAppt);
@@ -318,7 +318,7 @@ const PowerUser = (() => {
     } catch (_loadErr) {
       listEl.innerHTML = '<p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Failed to load sessions.</p>';
     }
-  }
+  }, 300);
 
   function attachSession(id, name) {
     _activeSession = id;
@@ -384,14 +384,7 @@ const PowerUser = (() => {
 
   function _slug(str) { return str.toLowerCase().replace(/\s+/g, '-'); }
 
-  function _relTime(iso) {
-    if (!iso) return '';
-    const diff = (Date.now() - new Date(iso)) / 1000;
-    if (diff < 60)   return 'just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400)return `${Math.floor(diff / 3600)}h ago`;
-    return new Date(iso).toLocaleDateString();
-  }
+
 
   function getActiveSession() { return _activeSession; }
 

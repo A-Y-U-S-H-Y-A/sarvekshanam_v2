@@ -56,13 +56,16 @@ class ScanSessionService extends EventEmitter {
     return session;
   }
 
-  async list(userId, { page = 1, limit = 20, status, appointmentId } = {}) {
+  async list(userId, { page = 1, limit = 20, status, mode, appointmentId } = {}) {
     const { ScanSession } = getDb();
     const offset = (page - 1) * limit;
     const where = { user_id: userId };
     
     if (status) {
       where.status = status;
+    }
+    if (mode) {
+      where.mode = mode;
     }
     if (appointmentId) {
       where.appointment_id = appointmentId;
@@ -76,6 +79,60 @@ class ScanSessionService extends EventEmitter {
     });
 
     return { sessions: rows.map(r => this._fromModel(r)), total: count };
+  }
+
+  async listGrouped(userId, { page = 1, limit = 10, status, mode, appointmentId } = {}) {
+    const { getDb } = require('../db/database');
+    const db = getDb();
+    const offset = (page - 1) * limit;
+
+    const conditions = ["user_id = :userId", "deleted_at IS NULL"];
+    const replacements = { userId, limit, offset };
+
+    if (status) { conditions.push("status = :status"); replacements.status = status; }
+    if (mode) { conditions.push("mode = :mode"); replacements.mode = mode; }
+    if (appointmentId) { conditions.push("appointment_id = :appointmentId"); replacements.appointmentId = appointmentId; }
+
+    const whereStr = conditions.join(" AND ");
+
+    const groupQuery = `
+      SELECT COALESCE(group_id, id) as g_id, MAX(created_at) as max_created
+      FROM scan_sessions
+      WHERE ${whereStr}
+      GROUP BY COALESCE(group_id, id)
+      ORDER BY max_created DESC
+      LIMIT :limit OFFSET :offset
+    `;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT COALESCE(group_id, id)) as total
+      FROM scan_sessions
+      WHERE ${whereStr}
+    `;
+
+    const [groupRows] = await db.sequelize.query(groupQuery, { replacements });
+    const [countRows] = await db.sequelize.query(countQuery, { replacements });
+    const total = countRows[0].total;
+
+    if (groupRows.length === 0) {
+      return { sessions: [], total };
+    }
+
+    const gIds = groupRows.map(r => r.g_id);
+    const { ScanSession } = getDb();
+    const { Op } = require('sequelize');
+
+    const sessions = await ScanSession.findAll({
+      where: {
+        [Op.and]: [
+          { user_id: userId },
+          { [Op.or]: [{ id: { [Op.in]: gIds } }, { group_id: { [Op.in]: gIds } }] }
+        ]
+      },
+      order: [['created_at', 'DESC']]
+    });
+
+    return { sessions: sessions.map(r => this._fromModel(r)), total };
   }
 
   async update(id, patch) {
@@ -196,6 +253,10 @@ class ScanSessionService extends EventEmitter {
       status:    row.status,
       results:   this._tryParse(row.result_json, null),
       error:     row.error,
+      runner_id: row.runner_id,
+      runner_name: row.runner_name || row.runner_id,
+      retry_count: row.retry_count || 0,
+      queue_position: row.queue_position || 0,
       createdAt: row.created_at ? row.created_at.toISOString() : null,
       updatedAt: row.updated_at ? row.updated_at.toISOString() : null,
     };

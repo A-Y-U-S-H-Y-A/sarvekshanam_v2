@@ -23,6 +23,8 @@
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.2",
     "cors": "^2.8.6",
+    "csv-parse": "^7.0.1",
+    "csv-stringify": "^6.8.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.1",

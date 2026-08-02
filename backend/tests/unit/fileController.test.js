@@ -2,7 +2,7 @@ const fileController = require('../../src/controllers/fileController');
 const { getProxyService } = require('../../src/services/proxyService'); // dummy if needed
 
 jest.mock('read-excel-file/node', () => jest.fn().mockResolvedValue([['H1', 'H2'], ['V1', 'V2'], ['']]));
-jest.mock('write-excel-file/node', () => jest.fn().mockResolvedValue(Buffer.from('xlsx data')));
+jest.mock('write-excel-file/node', () => jest.fn().mockReturnValue({ toBuffer: () => Promise.resolve(Buffer.from('xlsx data')) }));
 
 describe('FileController', () => {
   let req, res, next;

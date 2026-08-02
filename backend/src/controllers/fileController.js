@@ -1,10 +1,9 @@
 'use strict';
 
 const { sendSuccess, sendError, sendNotFound, sendForbidden } = require('../utils/responseHelper');
-
 const asyncHandler = require('../utils/asyncHandler');
-
-
+const { parse } = require('csv-parse/sync');
+const { stringify } = require('csv-stringify/sync');
 
 // POST /api/files/upload
 exports.uploadTargets = asyncHandler(async (req, res, next) => {
@@ -16,12 +15,13 @@ exports.uploadTargets = asyncHandler(async (req, res, next) => {
     let rawData = [];
     if (req.file.originalname && req.file.originalname.toLowerCase().endsWith('.csv')) {
       const text = buffer.toString('utf8');
-      rawData = text.split('\n').filter(l => l.trim()).map(line => line.split(','));
+      rawData = parse(text, { skip_empty_lines: true });
     } else {
       const readXlsxFile = require('read-excel-file/node');
       rawData = await readXlsxFile(buffer);
     }
-    if (rawData.length < 2) {
+    
+    if (!rawData || rawData.length < 2) {
       return res.status(400).json({ success: false, error: 'Sheet must contain at least a header row and one data row' });
     }
 
@@ -32,11 +32,11 @@ exports.uploadTargets = asyncHandler(async (req, res, next) => {
     for (let i = 1; i < rawData.length; i++) {
       const rowArr = rawData[i];
       // Skip completely empty rows
-      if (!rowArr || rowArr.every(cell => cell === '')) continue;
+      if (!rowArr || rowArr.every(cell => cell === '' || cell === null || cell === undefined)) continue;
       
       const rowObj = {};
       for (let j = 0; j < headers.length; j++) {
-        rowObj[headers[j]] = rowArr[j] !== undefined ? String(rowArr[j]).trim() : '';
+        rowObj[headers[j]] = rowArr[j] !== undefined && rowArr[j] !== null ? String(rowArr[j]).trim() : '';
       }
       rows.push(rowObj);
     }
@@ -48,8 +48,7 @@ exports.uploadTargets = asyncHandler(async (req, res, next) => {
         rows
       }
     });
-
-  });
+});
 
 // POST /api/files/download
 exports.downloadTargets = asyncHandler(async (req, res, next) => {
@@ -64,16 +63,7 @@ exports.downloadTargets = asyncHandler(async (req, res, next) => {
     
     let buffer;
     if (format === 'csv') {
-      let csvStr = headers.join(',') + '\n';
-      for (const row of rows) {
-        csvStr += headers.map(h => {
-           let val = row[h] || '';
-           if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
-              return '"' + val.replace(/"/g, '""') + '"';
-           }
-           return val;
-        }).join(',') + '\n';
-      }
+      const csvStr = stringify(rows, { header: true, columns: headers });
       buffer = Buffer.from(csvStr, 'utf8');
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', 'attachment; filename="targets.csv"');
@@ -90,10 +80,10 @@ exports.downloadTargets = asyncHandler(async (req, res, next) => {
             return { type: String, value: String(val) };
          }));
       }
-      buffer = await writeXlsxFile(data, { buffer: true });
+      buffer = await writeXlsxFile(data).toBuffer();
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename="targets.xlsx"');
     }
     
     res.send(buffer);
-  });
+});

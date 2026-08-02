@@ -41,10 +41,11 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
       const Model = db[modelName];
       if (!Model || !Model.options.paranoid) continue;
 
+      const deletedAtAttr = Model.options.deletedAt || 'deleted_at';
       const records = await Model.findAll({
         where: {
-          deleted_at: {
-            [db.Sequelize.Op.not]: null
+          [deletedAtAttr]: {
+            [db.Sequelize.Op.ne]: null
           }
         },
         paranoid: false // Include soft-deleted records

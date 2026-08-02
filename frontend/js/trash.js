@@ -3,12 +3,13 @@
 class TrashManager {
   constructor() {
     this.container = document.getElementById('trash-container');
-    this.init();
   }
 
   async init() {
-    if (Auth && Auth.getUser() && Auth.getUser().role !== 'admin') {
-      this.container.innerHTML = '<p class="error">Access Denied: Admins only.</p>';
+    if (!Auth || !Auth.getUser() || Auth.getUser().role !== 'admin') {
+      if (this.container) {
+        this.container.innerHTML = '<p class="error">Access Denied: Admins only.</p>';
+      }
       return;
     }
     
@@ -26,7 +27,11 @@ class TrashManager {
           'Authorization': `Bearer ${Auth.getToken()}`
         }
       });
-      if (!res.ok) throw new Error('Failed to load trash');
+      if (!res.ok) {
+        let errStr = 'Failed to load trash';
+        try { const errData = await res.json(); if (errData.error) errStr = typeof errData.error === 'string' ? errData.error : errData.error.message || errStr; } catch(e) {}
+        throw new Error(errStr);
+      }
       const data = await res.json();
       this.render(data);
     } catch (err) {
@@ -37,7 +42,14 @@ class TrashManager {
 
   render(trashData) {
     if (Object.keys(trashData).length === 0) {
-      this.container.innerHTML = '<p style="padding:16px;font-family:var(--font-mono);font-size:0.72rem;color:var(--fg-4);font-style:italic;">Trash is empty.</p>';
+      this.container.innerHTML = `
+        <div class="empty-state-layout">
+          <div class="icon" style="font-size:3rem;margin-bottom:10px;">✨</div>
+          <h3 style="margin-bottom:8px;">Trash is empty</h3>
+          <p style="margin-bottom:16px;">It looks like everything is clean. Items deleted will appear here for 1 hour before permanent deletion.</p>
+          <button class="btn btn-primary" onclick="App.switchTab('power')">Return to Dashboard</button>
+        </div>
+      `;
       return;
     }
 
@@ -64,7 +76,7 @@ class TrashManager {
         const statusClass = remainingMs <= 0 ? 'status-failed' : 'status-pending';
 
         html += `
-          <div class="trash-item">
+          <div class="trash-item" data-id="${Utils.escHtml(r.id)}">
             <div class="trash-item-header">
               <span class="trash-item-name">${Utils.escHtml(name)}</span>
               <span class="status-badge ${statusClass}">${timeRemaining}</span>
@@ -85,29 +97,43 @@ class TrashManager {
 
   async restore(model, id) {
     if (!(await Dialog.confirm('Are you sure you want to restore this item?'))) return;
+    
+    const itemEl = this.container.querySelector(`.trash-item[data-id="${id}"]`);
+    if (itemEl) itemEl.style.opacity = '0.5';
+
     try {
       const res = await fetch(`/api/trash/${model}/${id}/restore`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
       });
       if (!res.ok) throw new Error('Failed to restore');
+      if (itemEl) itemEl.remove();
       this.loadTrash();
     } catch (err) {
-      Dialog.alert(err.message);
+      if (itemEl) itemEl.style.opacity = '1';
+      if (typeof window.showError === 'function') window.showError(err);
+      else Dialog.alert(err.message);
     }
   }
 
   async forceDelete(model, id) {
     if (!(await Dialog.confirm('This will PERMANENTLY delete the item immediately. Continue?'))) return;
+    
+    const itemEl = this.container.querySelector(`.trash-item[data-id="${id}"]`);
+    if (itemEl) itemEl.style.opacity = '0.5';
+
     try {
       const res = await fetch(`/api/trash/${model}/${id}/force`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
       });
       if (!res.ok) throw new Error('Failed to force delete');
+      if (itemEl) itemEl.remove();
       this.loadTrash();
     } catch (err) {
-      Dialog.alert(err.message);
+      if (itemEl) itemEl.style.opacity = '1';
+      if (typeof window.showError === 'function') window.showError(err);
+      else Dialog.alert(err.message);
     }
   }
 }

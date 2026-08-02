@@ -7,13 +7,19 @@ const App = (() => {
 
   async function boot() {
     let targetRoute = window.location.pathname.substring(1) || 'power';
-    const validRoutes = ['power', 'ai', 'bulk', 'appointments', 'runners', 'cmd', 'trash'];
-    if (!validRoutes.includes(targetRoute)) targetRoute = 'power';
+    const validRoutes = ['power', 'ai', 'bulk', 'appointments', 'runners', 'cmd', 'trash', '404'];
+    
+    let is404 = false;
+    if (!validRoutes.includes(targetRoute)) {
+      is404 = true;
+      targetRoute = '404';
+    }
 
+    // Restore auth
     // Restore auth
     const user = await Auth.init();
     if (!user) {
-      Auth.setRedirectRoute(targetRoute);
+      Auth.setRedirectRoute(is404 ? 'power' : targetRoute);
       return;   // waiting for login
     }
 
@@ -28,6 +34,7 @@ const App = (() => {
       BulkScan.init(),
       Commands.init(),
       (typeof Runners !== 'undefined' ? Runners.load() : Promise.resolve()),
+      (typeof trashManager !== 'undefined' ? trashManager.init() : Promise.resolve()),
     ]);
 
     // Hide admin tab for non-admins
@@ -37,7 +44,9 @@ const App = (() => {
     }
 
     switchTab(targetRoute, false);
-    history.replaceState({ tab: targetRoute }, '', `/${targetRoute}`);
+    if (!is404) {
+      history.replaceState({ tab: targetRoute }, '', `/${targetRoute}`);
+    }
   }
 
   async function onLogin(user) {
@@ -50,6 +59,7 @@ const App = (() => {
       BulkScan.init(),
       Commands.init(),
       (typeof Runners !== 'undefined' ? Runners.load() : Promise.resolve()),
+      (typeof trashManager !== 'undefined' ? trashManager.init() : Promise.resolve()),
     ]);
     if (user.role !== 'admin') {
       document.querySelectorAll('[data-admin]').forEach(el => el.style.display = 'none');
@@ -241,14 +251,38 @@ function showToast(msg, type = 'success') {
   el._timer = setTimeout(() => el.classList.remove('visible'), 3200);
 }
 
+window.showError = function(err) {
+  if (err.what && err.why && err.next) {
+    let msg = `<div><strong>What happened:</strong> ${Utils.escHtml(err.what)}</div>
+               <div style="margin-top:8px;"><strong>Why:</strong> ${Utils.escHtml(err.why)}</div>
+               <div style="margin-top:8px;"><strong>Next steps:</strong> ${Utils.escHtml(err.next)}</div>`;
+    
+    if (err.isSystem) {
+       msg += `<div style="margin-top:16px;">
+                 <a href="https://github.com/A-Y-U-S-H-Y-A/sarvekshanam_v2/issues/new" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none;">Contact Support (GitHub Issues)</a>
+               </div>`;
+    }
+    Dialog.alert(msg, 'Error');
+  } else {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+};
+
 // ── Start ──────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => App.boot());
+window.addEventListener('DOMContentLoaded', () => {
+  App.boot();
+  if (typeof FormUtils !== 'undefined') {
+    FormUtils.setupValidation('new-appointment-form');
+    FormUtils.setupValidation('add-runner-form');
+  }
+});
 
 window.addEventListener('popstate', (e) => {
   if (e.state && e.state.tab) {
     App.switchTab(e.state.tab, false);
   } else {
     const route = window.location.pathname.substring(1) || 'power';
-    App.switchTab(route, false);
+    const validRoutes = ['power', 'ai', 'bulk', 'appointments', 'runners', 'cmd', 'trash', '404'];
+    App.switchTab(validRoutes.includes(route) ? route : '404', false);
   }
 });
